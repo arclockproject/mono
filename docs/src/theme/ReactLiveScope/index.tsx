@@ -1,5 +1,4 @@
 import React from "react";
-
 import JSXRunTime from "react/jsx-runtime";
 
 import Window from "@arclockproject/common/components/Window";
@@ -9,14 +8,19 @@ import {
   LimitLines2,
 } from "@arclockproject/common/components/Text";
 import PSDViewer from "@arclockproject/common/components/PSDViewer";
-import {
-  AudioHolder,
-  MiniPlayer,
-  PlayerContextProvider,
-  usePlayer,
-  VideoPlayer,
-} from "@arclockproject/common/components/Player";
-
+// import {
+//   AudioHolder,
+//   MiniPlayer,
+//   PlayerContextProvider,
+//   usePlayer,
+//   VideoPlayer,
+// } from "@arclockproject/common/components/Player";
+const _NoSSG = () => <>Component Currently has an SSG Issue</>;
+const AudioHolder = _NoSSG,
+  MiniPlayer = _NoSSG,
+  PlayerContextProvider = _NoSSG,
+  usePlayer = () => {},
+  VideoPlayer = _NoSSG;
 import Image from "@arclockproject/common/components/Image";
 import { AppearingText } from "@arclockproject/common/components/AppearingText";
 import FileBrowser from "@arclockproject/common/components/FileBrowser";
