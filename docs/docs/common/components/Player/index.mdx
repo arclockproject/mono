@@ -1,0 +1,187 @@
+---
+title: Player
+---
+
+Dependencies for `@arclockproject/common/components/Player` are
+
+```
+@mui/material @emotion/react @emotion/styled @mui/icons-material lodash
+```
+
+Universal Video and Audio Player.
+
+By passing `videoData` parameter you can instantly load the entry on component mount.
+
+```tsx live showLineNumbers
+<PlayerContextProvider>
+  <div
+    style={{
+      width: "80%",
+      maxWidth: "600px",
+    }}
+  >
+    <VideoPlayer
+      videoData={{
+        files: {
+          video: `${REMOTE.base}/PXQZNGjZIFo.mp4`,
+          audio: `${REMOTE.base}/PXQZNGjZIFo.m4a`,
+          subtitles: null,
+          thumbnail: `${REMOTE.base}/PXQZNGjZIFo.webp`,
+        },
+        id: "original-2-eis3",
+        title: "Original Piece #2 by Eis3",
+        meta: null,
+      }}
+      isPlaylist={false}
+      chapters={[]}
+      heatmap={[]}
+      showInlineTitle
+    />
+    <AudioHolder />
+  </div>
+</PlayerContextProvider>
+```
+
+As long as `<AudioHolder />` stays loaded, the audio will keep on playing and when player is loaded back, it will attempt to sync back
+
+```tsx live showLineNumbers
+function main() {
+  function PageWithPlayer() {
+    let exampleVideos = [
+      {
+        files: {
+          video: `${REMOTE.base}/PXQZNGjZIFo.mp4`,
+          audio: `${REMOTE.base}/PXQZNGjZIFo.m4a`,
+          subtitles: null,
+          thumbnail: `${REMOTE.base}/PXQZNGjZIFo.webp`,
+        },
+        id: "original-2-eis3",
+        title: "Original Piece #2 by Eis3",
+        meta: null,
+      },
+      {
+        files: {
+          video: `${REMOTE.base}/jkZ53T1Pu7k.mp4`,
+          audio: `${REMOTE.base}/jkZ53T1Pu7k.m4a`,
+          subtitles: null,
+          thumbnail: `${REMOTE.base}/jkZ53T1Pu7k.webp`,
+        },
+        id: "original-3-eis3",
+        title: "Original Piece #3 by Eis3",
+        meta: null,
+      },
+    ];
+    const player = usePlayer();
+    return (
+      <div>
+        <div
+          style={{
+            width: "80%",
+            maxWidth: "600px",
+          }}
+        >
+          <VideoPlayer
+            isPlaylist={false}
+            chapters={[]}
+            heatmap={[]}
+            showInlineTitle
+          />
+          {player.internal.playerData.value !== null && (
+            <button
+              onClick={() => player.internal.playlistContent.set(exampleVideos)}
+            >
+              Load All (playlist)
+            </button>
+          )}
+          {exampleVideos.map((entry) => (
+            <button
+              onClick={() => player.internal.playerData.set(entry)}
+              key={entry.id}
+            >
+              {entry.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function App() {
+    const [page, setPage] = useState(0);
+    return (
+      <>
+        <div>
+          <button onClick={() => setPage(0)}>VideoPlayer Unload</button>
+          <button onClick={() => setPage(1)}>VideoPlayer Load</button>
+        </div>
+        <div style={{ width: "80%", maxWidth: "600px" }}>
+          {page === 0 ? <p>VideoPlayer not rendering</p> : <PageWithPlayer />}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <PlayerContextProvider>
+      <div style={{ height: "400px" }}>
+        <App />
+      </div>
+      <MiniPlayer />
+      <AudioHolder />
+    </PlayerContextProvider>
+  );
+}
+```
+
+## Sticky Mobile Player
+
+As long as `<AudioHolder />` stays loaded, the audio will keep on playing and when player is loaded back, it will attempt to sync back
+
+```tsx live showLineNumbers
+<PlayerContextProvider
+  settings={{
+    autoAudioOnly: false,
+    autoPlay: false,
+    videoBackgroundBloom: true,
+    allowMiniPlayer: true,
+    sticky: true, // changed
+    stickySpacing: 0,
+    stickyTriggerDistance: 0,
+  }}
+>
+  <div style={{ height: "500px", overflowY: "scroll" }}>
+    <VideoPlayer
+      videoData={{
+        files: {
+          video: `${REMOTE.base}/PXQZNGjZIFo.mp4`,
+          audio: `${REMOTE.base}/PXQZNGjZIFo.m4a`,
+          subtitles: null,
+          thumbnail: `${REMOTE.base}/PXQZNGjZIFo.webp`,
+        },
+        id: "original-2-eis3",
+        title: "Original Piece #2 by Eis3",
+        meta: null,
+      }}
+      isPlaylist={false}
+      chapters={[]}
+      heatmap={[]}
+      showInlineTitle
+    />
+    <div style={{ height: "500px" }}>
+      I am 500px tall. If you view me on mobile, you will see that the video
+      stays there and this text will go below the video as you scroll. Try to
+      scroll and see me disappear!
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+      Still here!
+    </div>
+  </div>
+  <AudioHolder />
+</PlayerContextProvider>
+```

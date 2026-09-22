@@ -1,0 +1,39 @@
+---
+title: AStar
+---
+
+# Dependencies
+
+This library does not require any dependencies.
+
+# Usage
+
+```tsx
+import { Map2D, Node2D, Vector2D } from "@arclockproject/common/library/AStar";
+import Random from "@arclockproject/common/library/Random";
+
+const worldMap = new Map2D(
+  // Loop to generate a Node2D[][] Matrix
+  new Array(5).fill(0).map((_value, y, arr) => {
+    return arr.map(
+      (_, x) =>
+        new Node2D(
+          new Vector2D(x, y), // Correctly pass coordinate reference to node
+          Random.rangeInt(0, 4), // Generate random cost
+          Math.random() > 0.1, // 10% chance to become not traversable
+        ),
+    );
+  }),
+);
+
+const foundPath = worldMap.calculatePath(
+  worldMap.getNode(new Vector2D(1, 1)), // Point 1
+  worldMap.getNode(new Vector2D(8, 8)), // Point 2
+);
+
+if (foundPath) {
+  console.log("Valid path was found!");
+} else {
+  console.log("Was unable to find path between 2 points.");
+}
+```

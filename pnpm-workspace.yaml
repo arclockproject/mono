@@ -1,0 +1,10 @@
+packages:
+  - packages/*
+  - docs
+
+hoistWorkspacePackages: true
+
+neverBuiltDependencies: []
+
+patchedDependencies:
+  '@docusaurus/core@3.9.2': patches/@docusaurus__core@3.9.2.patch

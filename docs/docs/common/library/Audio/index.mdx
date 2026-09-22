@@ -1,0 +1,53 @@
+---
+title: Audio
+---
+
+# Dependencies
+
+This library does not require any dependencies.
+
+# Usage
+
+Play audio on button click.
+
+```tsx
+import Audio from "@arclockproject/common/library/Audio";
+
+function Example() {
+  return (
+    <div>
+      <button
+        onClick={() => {
+          Audio.AudioManagerGlobal.play("/assets/sound.mp4");
+        }}
+      />
+    </div>
+  );
+}
+```
+
+Play audio on element load and keep looping until element unmounts.
+
+```tsx
+import Audio from "@arclockproject/common/library/Audio";
+import { useEffect } from "react";
+
+function Example() {
+  useEffect(() => {
+    Audio.AudioManagerGlobal.play("/assets/sound.mp4", {
+      loop: true,
+      singleInstance: true,
+    });
+    return () => {
+      Audio.AudioManagerGlobal.stopInstance("/assets/sound.mp4", {
+        gradual: true,
+      });
+    };
+  }, []);
+  return (
+    <div>
+      <button onClick={() => {}} />
+    </div>
+  );
+}
+```

@@ -1,0 +1,24 @@
+---
+title: Array
+---
+
+# Dependencies
+
+This library does not require any dependencies.
+
+# Usage
+
+```tsx
+import Array from "@arclockproject/common/library/Array";
+
+Array.shuffle([0, 1, 2, 3, 4, 5]); // [1, 4, 3, 2, 0, 5]
+
+let x = [0, 1, 2, 3, 4, 5];
+let y = Array.shuffle(x);
+console.log(y); // [1, 4, 3, 2, 0, 5]
+console.log(x); // [1, 4, 3, 2, 0, 5]
+console.log(x === y); // true
+
+Array.swap(x, 0, 2);
+console.log(x); // [3, 4, 1, 2, 0, 5]
+```

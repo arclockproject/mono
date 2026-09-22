@@ -1,0 +1,73 @@
+---
+title: Issues
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+## Fix for Docusaurus
+
+```tsx line={6-16} title="docusaurus.config.ts"
+...
+const config: Config = {
+  ...
+  plugins: [
+    ...
+    async function MMDDocusaurusFix(context, options) {
+      return {
+        name: "mmd-docusaurus-fix",
+        configureWebpack: () => ({
+          resolve: {
+            fallback: { path: false, fs: false },
+            extensions: [".jsx", ".js", ".tsx", ".ts"],
+          },
+        }),
+      };
+    },
+    ...
+  ],
+  ...
+  } satisfies Preset.ThemeConfig,
+};
+export default config;
+```
+
+Then ensure it does not run server-side
+
+<Tabs groupId="language">
+  <TabItem value="ts" label="TypeScript" default>
+  
+```tsx title="MMDPlayerWrapper.tsx"
+import BrowserOnly from "@docusaurus/BrowserOnly";
+import type { MMD as MMDType } from "@arclockproject/mmd-player"; // Remove if on js
+export function MMD(props: Parameters<typeof MMDType>) {
+  return (
+    <BrowserOnly fallback="Loading MMDPlayer...">
+      {() => {
+        const _MMD = require("@arclockproject/mmd-player").default;
+        return <_MMD {...props} />;
+      }}
+    </BrowserOnly>
+  );
+}
+```
+
+  </TabItem>
+  <TabItem value="jsx" label="JavaScript">
+
+```jsx title="MMDPlayerWrapper.jsx"
+import BrowserOnly from "@docusaurus/BrowserOnly";
+export function MMD(props) {
+  return (
+    <BrowserOnly fallback="Loading MMDPlayer...">
+      {() => {
+        const _MMD = require("@arclockproject/mmd-player").default;
+        return <_MMD {...props} />;
+      }}
+    </BrowserOnly>
+  );
+}
+```
+
+  </TabItem>
+</Tabs>

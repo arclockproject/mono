@@ -1,0 +1,32 @@
+---
+title: Window
+---
+
+Dependencies for `@arclockproject/common/components/Window` are
+
+```
+@mui/material @emotion/react @emotion/styled
+```
+
+You can pass React Elements into the Window and not just strings.
+Additionally the window body has position relative on it so you can position absolute elements
+to any of the sides.
+
+Draggable window with example text.
+
+```tsx title="Example Window" live showLineNumbers
+<Window
+  open={false} // Replace me with true!
+  title="Title String"
+  onClose={() => console.log("Close clicked")}
+  onContextMenu={(event) => {
+    event.preventDefault();
+    console.log("Top right clicked");
+  }}
+  onFocus={() => console.log("Window focused")}
+  spawnCoordinate={{ x: 50, y: 300 }}
+  spawnSize={{ width: 350, height: 250 }}
+>
+  ^ Click the title to drag me around!
+</Window>
+```

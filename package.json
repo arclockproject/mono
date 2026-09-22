@@ -1,0 +1,28 @@
+{
+  "name": "arclockproject",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm packages:build && pnpm docs:dev",
+    "docs:build": "pnpm --filter=docs build",
+    "docs:serve": "pnpm --filter=docs serve",
+    "docs:dev": "pnpm --filter=docs start",
+    "docs:typecheck": "pnpm --filter=docs typecheck",
+    "packages:build": "pnpm --filter='./packages/*' build",
+    "package": "pnpm packages:build && pnpm pack --filter='./packages/*'",
+    "prepare": "pnpm simple-git-hooks",
+    "lint": "echo 'placeholder'",
+    "type-check": "echo 'placeholder'"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "devDependencies": {
+    "simple-git-hooks": "^2.13.1"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm run lint && pnpm run type-check"
+  },
+  "engines": {
+    "pnpm": "10.28.2",
+    "node": "20.20.0"
+  }
+}

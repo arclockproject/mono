@@ -1,0 +1,19 @@
+---
+title: Random
+---
+
+# Dependencies
+
+This library does not require any dependencies.
+
+# Usage
+
+```tsx
+import Random from "@arclockproject/common/library/Random";
+
+function playRandom() {
+  const randomSongs = ["Jack Black", "Special day", "Neverland"];
+  const selected = Random.fromArray(randomSongs);
+  return selected; // "Neverland"
+}
+```

@@ -1,0 +1,33 @@
+---
+title: AppearingText
+---
+
+Dependencies for `@arclockproject/common/components/AppearingText` are
+
+```
+@mui/material @emotion/react @emotion/styled
+```
+
+Type text at default character/100ms",
+
+```tsx
+import { AppearingText } from "@arclockproject/common/components/AppearingText";
+```
+
+```tsx live
+<AppearingText>
+  Lorem ipsum dolor sit amet consectetur adipisicing elit. Illo quod fugiat
+  excepturi temporibus iste reiciendis repudiandae aliquam libero atque, sed id
+  nemo quia similique hic ducimus labore corrupti cupiditate quae.
+</AppearingText>
+```
+
+Type text at a custom speed of character/20ms
+
+```tsx live
+<AppearingText speed={20}>
+  Lorem ipsum dolor sit amet consectetur adipisicing elit. Illo quod fugiat
+  excepturi temporibus iste reiciendis repudiandae aliquam libero atque, sed id
+  nemo quia similique hic ducimus labore corrupti cupiditate quae.
+</AppearingText>
+```

@@ -1,0 +1,31 @@
+---
+title: Time
+---
+
+# Dependencies
+
+This library does not require any dependencies.
+
+# Usage
+
+```tsx
+import Time from "@arclockproject/common/library/Time";
+
+Time.timeSince(3601); // "1 hour ago"
+Time.timeSince(130); // "2 minutes ago"
+Time.timeSince(61); // "1 minute ago"
+Time.timeSince(60); // "60 seconds ago"
+Time.timeSince(40); // "40 seconds ago"
+```
+
+```tsx
+import Time from "@arclockproject/common/library/Time";
+
+Time.parseTimeDuration(60); // "01:00"
+Time.parseTimeDuration(120); // "02:00"
+Time.parseTimeDuration(6); // "00:06"
+Time.parseTimeDuration(3605); // "01:00:05"
+
+// Specific fixed max
+Time.parseTimeDuration(356000); // "--:--"
+```

@@ -1,0 +1,12 @@
+diff --git a/lib/commands/build/build.js b/lib/commands/build/build.js
+index cc16e6e12cede47946a25ee3fbee40d33a1ec7f6..82bd27351228d156e0394529665f3984a16a997c 100644
+--- a/lib/commands/build/build.js
++++ b/lib/commands/build/build.js
+@@ -35,6 +35,7 @@ async function build(siteDirParam = '.', cliOptions = {}) {
+         await tryToBuildLocale({ siteDir, locale, cliOptions });
+     }));
+     logger_1.default.info `Use code=${'npm run serve'} command to test your build locally.`;
++    process.exit(0); // https://github.com/facebook/docusaurus/pull/10410
+ }
+ // We need the default locale to always be the 1st in the list. If we build it
+ // last, it would "erase" the localized sites built in sub-folders

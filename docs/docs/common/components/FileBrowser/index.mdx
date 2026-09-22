@@ -1,0 +1,36 @@
+---
+title: FileBrowser
+---
+
+Dependencies for `@arclockproject/common/components/FileBrowser` are
+
+```
+@mui/material @emotion/react @emotion/styled @mui/x-tree-view babylon-mmd @babylonjs/core @babylonjs/havok @babylonjs/materials wanakana
+```
+
+Dependencies will be reduced in the future as currently it is partially linked to the MMD component and thus forcing babylon dependencies.
+
+FileBrowser Example with base path of /home/user and 5 files.
+
+CustomAction is set to log the path when you click.
+Checkout the developer console when clicking on a file (not folder)
+
+```tsx
+import FileBrowser from "@arclockproject/common/components/FileBrowser";
+```
+
+```tsx live
+<FileBrowser
+  base="/home/user"
+  customAction={(file: string) => {
+    console.log("You clicked: " + file);
+  }}
+  fileSystemRaw={[
+    "/index.html",
+    "/assets/image.png",
+    "/assets/videos/intro.mp4",
+    "/assets/icon.svg",
+    "/LICENSE",
+  ]}
+/>
+```

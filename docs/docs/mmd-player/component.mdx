@@ -1,0 +1,74 @@
+---
+title: Component
+---
+
+Dependencies for `@arclockproject/mmd-player` are
+
+```
+@mui/material @emotion/react @emotion/styled @mui/x-tree-view babylon-mmd @babylonjs/core @babylonjs/havok @babylonjs/materials wanakana
+```
+
+Library currently is limited to rendering one Instance of MMD on a single page
+
+## FullScreenMMDPlayer
+
+Example of a full paged MMD Player",
+
+```tsx
+import MMD from "@arclockproject/mmd-player";
+// FileBrowser is optional and can be removed!
+import FileBrowser from "@arclockproject/common/components/FileBrowser";
+```
+
+```tsx live
+<MMD
+  maxWidth="1280px"
+  maxHeight="720px"
+  presets={() => [
+    {
+      title: "メランコリ・ナイト",
+      subTitle: "(Miku Cover)",
+      thumbnail: "",
+      // Audio source: https://youtu.be/y__uZETTuL8
+      music: `${REMOTE.noname0310}/motion/melancholy_night/melancholy_night.mp3`,
+      // Motion source: https://www.nicovideo.jp/watch/sm41164308
+      vmdCamera: `${REMOTE.base}/メランコリ・ナイト_カメラ.cam.vmd`,
+      entities: [
+        {
+          // Motion source: https://www.nicovideo.jp/watch/sm41164308
+          movement: [`${REMOTE.base}/メランコリ・ナイト.chara.vmd`],
+          // Model source: https://www.deviantart.com/sanmuyyb/art/YYB-Hatsune-Miku-10th-DL-702119716
+          model: {
+            file: "yyb_hatsune_miku_10th_v1.02.pmx",
+            folder: `${REMOTE.noname0310}/model/yyb_hatsune_miku_10th_ff/`,
+          },
+        },
+      ],
+      // Below properties can be excluded if empty (As in "" or [])
+      stageFolder: "",
+      stagePMX: "",
+      entitiesOffset: [],
+      entitiesAngle: [],
+      actionMemory: [],
+    },
+  ]}
+  rawMMDDetails={() => ({
+    pmd: [],
+    pmx: [
+      `${REMOTE.noname0310}/model/yyb_hatsune_miku_10th_ff/yyb_hatsune_miku_10th_v1.02.pmx`,
+    ],
+    vmd: [
+      `${REMOTE.base}/メランコリ・ナイト_カメラ.cam.vmd`,
+      `${REMOTE.base}/メランコリ・ナイト.chara.vmd`,
+    ],
+  })}
+  // FileBrowser is optional and can be removed!
+  getFileBrowser={(data) => <FileBrowser {...data} />}
+  basePathMMD=""
+  loadAudioMeta={(value) => [
+    `${REMOTE.base}/${value}.m4a`,
+    `${REMOTE.base}/${value}.webp`,
+  ]}
+  noDebug={false}
+/>
+```

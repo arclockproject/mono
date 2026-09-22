@@ -1,0 +1,30 @@
+---
+title: PSDViewer
+---
+
+Dependencies for `@arclockproject/common/components/PSDViewer` are
+
+```
+@mui/material @emotion/react @emotion/styled @webtoon/psd
+```
+
+Demo assets were obtained from null
+
+Currently PSDViewer will display the embeded render of the psd file.
+To manipulate layers the image will be manually redrawn. The effectiveness of the redraws
+will depend on the provided file as many layer blend modes are not implemented which will cause
+layers to render not as expected.
+
+```tsx
+import PSDViewer from "@arclockproject/common/components/PSDViewer";
+```
+
+```tsx title="Loading PSD File from /demo-assets/null.png" live showLineNumbers
+<div>
+  <p>Expected Render:</p>
+  <img src="/demo-assets/null.png" />
+  <div style={{ height: "700px", position: "relative" }}>
+    <PSDViewer src="/demo-assets/30003358_juice_text_style_effect.psd" />
+  </div>
+</div>
+```

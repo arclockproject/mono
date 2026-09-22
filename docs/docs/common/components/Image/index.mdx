@@ -1,0 +1,99 @@
+---
+title: Image
+---
+
+Dependencies for `@arclockproject/common/components/Image` are
+
+```
+No dependencies required.
+```
+
+## Image without PSDViewer
+
+Only image without PSD Renderer. PSD files will try to load as images`,
+
+```tsx
+import Image from "@arclockproject/common/components/Image";
+```
+
+```tsx live showLineNumbers
+<Image
+  autoPlay
+  controls
+  enableMovement
+  onError={() => console.error("Image: Error!")}
+  onLoad={() => console.log("Image: Loaded!")}
+  renderer="auto"
+  src={`${REMOTE.base}/PXQZNGjZIFo.webp`}
+  styleImage={{
+    width: "100%",
+    height: "100%",
+  }}
+/>
+```
+
+## Image with PSDViewer
+
+Image not wrapped in a container.
+
+```tsx
+import Image from "@arclockproject/common/components/Image";
+import PSDViewer from "@arclockproject/common/components/PSDViewer";
+```
+
+```tsx live showLineNumbers
+<Image
+  autoPlay
+  controls
+  enableMovement
+  onError={() => console.error("Image: Error!")}
+  onLoad={() => console.log("Image: Loaded!")}
+  psdRenderer={{
+    component: PSDViewer,
+    isLazy: false,
+  }}
+  renderer="auto"
+  src={`${REMOTE.base}/PXQZNGjZIFo.webp`}
+  styleImage={{
+    width: "100%",
+    height: "100%",
+  }}
+/>
+```
+
+## Image with PSDViewer Lazy
+
+Image not wrapped in a container (Lazy).
+
+Alternatively for bundle size regarding PSDViewer you can lazy load it.
+Component will handle `<Suspense />` internally so there is no need to wrap the image with it..
+With this, the import will be loaded only when required.
+This way you can support PSDViewer without loading it in cases when it is not needed.
+
+```tsx
+import Image from "@arclockproject/common/components/Image";
+import { lazy } from "react";
+const PSDViewer = lazy(
+  () => import("@arclockproject/common/components/PSDViewer"),
+);
+```
+
+```tsx live showLineNumbers
+<Image
+  autoPlay
+  controls
+  enableMovement
+  onError={() => console.error("Image: Error!")}
+  onLoad={() => console.log("Image: Loaded!")}
+  psdRenderer={{
+    component: PSDViewer,
+    isLazy: true,
+  }}
+  renderer="auto"
+  src={`${REMOTE.base}/PXQZNGjZIFo.webp`}
+  styleImage={{
+    width: "100%",
+    height: "100%",
+  }}
+/>
+```

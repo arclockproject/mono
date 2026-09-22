@@ -1,0 +1,16 @@
+# Dependencies
+/node_modules
+
+# Production
+/build
+
+# Generated files
+.docusaurus
+.cache-loader
+
+# Remove automatically added Physics binaries
+static/ammo.wasm.wasm
+static/HavokPhysics.wasm
+
+# Files from assets repo
+static/demo-assets

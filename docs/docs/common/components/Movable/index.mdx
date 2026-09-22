@@ -1,0 +1,113 @@
+---
+title: Movable
+---
+
+Dependencies for `@arclockproject/common/components/Movable` are
+
+```
+No dependencies required.
+```
+
+```tsx title="Import using"
+import Movable from "@arclockproject/common/components/Movable";
+```
+
+## Moving disabled
+
+```tsx live
+<Movable
+  style={{
+    width: "100%",
+    height: "120px",
+    background: "rgb(52, 11, 55)", // Purple
+  }}
+>
+  <div
+    style={{
+      width: "100%",
+      height: "100%",
+      background: "rgb(3, 70, 3)", // Green
+    }}
+  >
+    <p style={{ color: "white" }}>You can't move me!</p>
+  </div>
+</Movable>
+```
+
+## Moving enabled only
+
+```tsx live
+<Movable
+  enableMovement
+  style={{
+    width: "100%",
+    height: "120px",
+    background: "rgb(52, 11, 55)", // Purple
+  }}
+>
+  <div
+    style={{
+      width: "100%",
+      height: "100%",
+      background: "rgb(3, 70, 3)", // Green
+    }}
+  >
+    <p style={{ color: "white" }}>You can move me but not zoom!</p>{" "}
+  </div>
+</Movable>
+```
+
+## Moving and zooming enabled
+
+```tsx live
+<Movable
+  enableMovement
+  enableZoom
+  style={{
+    width: "100%",
+    height: "120px",
+    background: "rgb(52, 11, 55)", // Purple
+  }}
+>
+  <div
+    style={{
+      width: "100%",
+      height: "100%",
+      background: "rgb(3, 70, 3)", // Green
+    }}
+  >
+    <p style={{ color: "white" }}>You can move and zoom me!</p>{" "}
+  </div>
+</Movable>
+```
+
+## Movable extends from div
+
+```tsx live
+<Movable
+  enableMovement
+  style={{
+    width: "100%",
+    height: "120px",
+    background: "rgb(52, 11, 55)", // Purple
+  }}
+  onClick={() => {
+    console.log("Hello");
+  }}
+  onMouseDown={() => {
+    console.log("I was clicked!");
+    // This is called before the move logic!
+    // Also regardless if enableMovement or enableZoom state!
+  }}
+>
+  <div
+    style={{
+      width: "100%",
+      height: "100%",
+      background: "rgb(3, 70, 3)", // Green
+    }}
+  >
+    <p style={{ color: "white" }}>Movable acts like a div!</p>
+  </div>
+</Movable>
+```
