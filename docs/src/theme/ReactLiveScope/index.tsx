@@ -44,7 +44,7 @@ const ReactLiveScope: unknown = {
   REMOTE: {
     base:
       process.env.NODE_ENV === "production"
-        ? "https://arturwagner.co.uk/demo-assets"
+        ? "https://arclockproject.github.io/demo-assets"
         : "/demo-assets",
     noname0310:
       "https://noname0310.github.io/web-mmd-viewer/melancholic_night/mmd_public",
