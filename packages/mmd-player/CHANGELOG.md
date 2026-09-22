@@ -1,3 +1,9 @@
+## 0.1.1
+
+### Chore
+
+- Version bump due to NPM registry verson conflict.
+
 ## 0.1.0
 
 ### Features

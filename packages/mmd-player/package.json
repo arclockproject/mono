@@ -1,6 +1,6 @@
 {
   "name": "@arclockproject/mmd-player",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "ArcLock Project",
   "description": "Full MMD Loader and Player",
   "homepage": "https://arclockproject.org/docs/mmd-player",
