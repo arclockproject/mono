@@ -8,34 +8,18 @@ import {
   LimitLines2,
 } from "@arclockproject/common/components/Text";
 import PSDViewer from "@arclockproject/common/components/PSDViewer";
-// import {
-//   AudioHolder,
-//   MiniPlayer,
-//   PlayerContextProvider,
-//   usePlayer,
-//   VideoPlayer,
-// } from "@arclockproject/common/components/Player";
-const _NoSSG = () => <>Component Currently has an SSG Issue</>;
-const AudioHolder = _NoSSG,
-  MiniPlayer = _NoSSG,
-  PlayerContextProvider = _NoSSG,
-  usePlayer = () => {},
-  VideoPlayer = _NoSSG;
+import {
+  AudioHolder,
+  MiniPlayer,
+  PlayerContextProvider,
+  usePlayer,
+  VideoPlayer,
+} from "@arclockproject/common/components/Player";
 import Image from "@arclockproject/common/components/Image";
 import { AppearingText } from "@arclockproject/common/components/AppearingText";
 import FileBrowser from "@arclockproject/common/components/FileBrowser";
-import BrowserOnly from "@docusaurus/BrowserOnly";
-import type { MMD as MMDType } from "@arclockproject/mmd-player";
-function MMD(props: Parameters<typeof MMDType>) {
-  return (
-    <BrowserOnly fallback="Loading MMDPlayer...">
-      {() => {
-        const _MMD = require("@arclockproject/mmd-player").default;
-        return <_MMD {...props} />;
-      }}
-    </BrowserOnly>
-  );
-}
+
+import MMD from "@arclockproject/mmd-player";
 const ReactLiveScope: unknown = {
   React,
   ...React,
@@ -45,7 +29,7 @@ const ReactLiveScope: unknown = {
     base:
       process.env.NODE_ENV === "production"
         ? "https://arclockproject.github.io/demo-assets"
-        : "/demo-assets",
+        : "/demo-assets", // git clone assets repo to static
     noname0310:
       "https://noname0310.github.io/web-mmd-viewer/melancholic_night/mmd_public",
   },
