@@ -1,6 +1,8 @@
 import React, { type ReactNode } from "react";
+//@ts-ignore Docosaurus does resolve this import.
 import Playground from "@theme/Playground";
 import BrowserOnly from "@docusaurus/BrowserOnly";
+//@ts-ignore Docosaurus does resolve this import.
 import type { Props } from "@theme/LiveCodeBlock";
 
 /**
