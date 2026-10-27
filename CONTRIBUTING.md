@@ -2,17 +2,23 @@
 
 Thank you for your interest in contributing to ArcLock Project! This guide will help you get started with the development process.
 
-## Etiquette
+## 🤖 Using AI
 
-> [!IMPORTANT]
->
-> Please be aware that vibe-coding contributions are **🚫 STRICTLY PROHIBITED**. We are humans behind these open source projects, trying hard to maintain good quality and a healthy community. Not only do vibe-coding contributions pollute the code, but they also drain A LOT of unnecessary energy and time from maintainers and toxify the community and collaboration.
->
-> All vibe-coded, AI-generated PRs will be rejected and closed without further notice. In severe cases, your account might be banned organization-wide and reported to GitHub.
->
-> **PLEASE SHOW SOME RESPECT** and do not do so.
+You're welcome to use AI tools to help you contribute. But there are two important ground rules:
 
-###### We hold the same belief as [github.com/antfu/contribute](https://github.com/antfu/contribute?tab=readme-ov-file#-etiquette) and thus we too abide by same said etiquette.
+### 1. Never let an LLM speak for you
+
+When you write a comment, issue, or PR description, use your own words. Grammar and spelling don't matter &ndash; real connection does. AI-generated summaries tend to be long-winded, dense, and often inaccurate. Simplicity is an art. The goal is not to sound impressive, but to communicate clearly.
+
+### 2. Never let an LLM think for you
+
+Feel free to use AI to write code, tests, or point you in the right direction. But always understand what it's written before contributing it. Take personal responsibility for your contributions. Don't say "ChatGPT says..." &ndash; tell us what _you_ think.
+
+PRs that we consider fully vibe-coded may be closed without further explanation.
+
+For more context, see [Using AI in open source](https://roe.dev/blog/using-ai-in-open-source).
+
+###### We hold the same belief as [github.com/antfu/contribute](https://github.com/antfu/contribute?tab=readme-ov-file#-using-ai) and thus we too abide by same said etiquette.
 
 ## Development Setup
 
@@ -60,6 +66,13 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/) for clear
 - `test:` Adding or updating tests
 - `chore:` Maintenance tasks, dependencies, etc.
 
+Current Scopes:
+
+- `(docs)` Docusaurus documentation
+- `(common)` @arclockproject/common
+- `(mmd-player)` @arclockproject/mmd-player
+- `(mono)` For anything else outside those scopes. Generally monorepo related.
+
 ## Pull Request Guidelines
 
 1. Update documentation if needed
@@ -75,4 +88,4 @@ Please be respectful and constructive in all interactions within our community.
 
 If you have any questions, please [open an issue](https://github.com/ArcLockProject/mono/issues/new) for discussion.
 
-Thank you for contributing to @arclockproject!
+Thank you for contributing to [@arclockproject](https://github.com/ArcLockProject)!
