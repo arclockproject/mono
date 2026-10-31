@@ -5,15 +5,60 @@
  * Types are shown as written in the source rather than computed by the type
  * checker. That keeps them readable, and lets the program skip loading
  * dependencies (`noResolve`), which keeps this fast enough for hot reload.
+ *
+ * Export kinds: `function X` / `const X = () =>` → function or component,
+ * `const X = { a() {} }` → namespace, `const X = { a: 1 }` → object, `class` → class,
+ * `const x = new X()` → instance, `type`/`interface` → type, any other `const` → variable.
  */
 import path from "node:path";
 import ts from "typescript";
 import { type Doc, emptyDoc, type Fn, type Member, type Prop, prop, type Section } from "./types";
 
+// ---------- Rules: change these if components are written in new ways ----------
+
+/** A capitalised function with at most one parameter returning one of these is a component. */
+const COMPONENT_RETURN_TYPE = /\b(JSX\.Element|ReactNode|ReactElement)\b/;
+/** `const X: StyledComponent<Props> = …` is a component. Its first type argument holds the props. */
+const COMPONENT_TYPE = /(^|\.)(StyledComponent|ComponentType|FC|FunctionComponent)$/;
+/** `PropsWithChildren<P>` is read as `P` plus an optional `children`. */
+const PROPS_WITH_CHILDREN = /(^|\.)PropsWithChildren$/;
+
+type TagHandler = (doc: Doc, text: string, tag: ts.JSDocTag) => void;
+
+/** What each JSDoc tag does to a `Doc`. Tags that are not listed are ignored. */
+const TAGS = new Map<string, TagHandler>(Object.entries({
+  param: (doc, text, tag) => doc.params.set((tag as ts.JSDocParameterTag).name.getText(), text),
+  returns: (doc, text) => void (doc.returns = text),
+  augments: (doc, text, tag) =>
+    appendDescription(doc, `Extends \`${(tag as ts.JSDocAugmentsTag).class.getText()}\`.${text ? ` ${text}` : ""}`),
+  deprecated: (doc, text) => void (doc.deprecated = text || "This is deprecated."),
+  example: (doc, _, tag) => doc.examples.push(ts.getTextOfJSDocComment(tag.comment)?.replace(/^\n+|\s+$/g, "") ?? ""),
+  default: (doc, text) => void (doc.defaultValue = text),
+  defaultValue: (doc, text) => void (doc.defaultValue = text),
+  remarks: (doc, text) => appendDescription(doc, text),
+  internal: (doc) => void (doc.hidden = true),
+  hidden: (doc) => void (doc.hidden = true),
+  ignore: (doc) => void (doc.hidden = true),
+  // `@see` is handled in `doc()`, since it needs to drop links back to the docs site.
+} satisfies Record<string, TagHandler>));
+
+/** The `TAGS` key of a tag. TS parses some tags into their own kinds and accepts aliases like `@return`. */
+function tagName(tag: ts.JSDocTag): string {
+  if (ts.isJSDocParameterTag(tag)) return "param";
+  if (ts.isJSDocReturnTag(tag)) return "returns";
+  if (ts.isJSDocAugmentsTag(tag)) return "augments";
+  if (ts.isJSDocDeprecatedTag(tag)) return "deprecated";
+  if (ts.isJSDocSeeTag(tag)) return "see";
+  return tag.tagName.text;
+}
+
+// ---------- Analyzer ----------
+
 export type Analyzer = { analyze(entry: string): Section[] };
 
 type TypeDecl = ts.TypeAliasDeclaration | ts.InterfaceDeclaration;
 type PropsResult = { props: Prop[]; inherits: string[] };
+type Comment = string | ts.NodeArray<ts.JSDocComment> | undefined;
 
 export function createAnalyzer(options: {
   tsconfig: string;
@@ -23,13 +68,11 @@ export function createAnalyzer(options: {
   selfDocsUrl: string;
 }): Analyzer {
   const config = ts.readConfigFile(options.tsconfig, ts.sys.readFile);
-  if (config.error) {
-    throw new Error(`[api-docs] ${ts.flattenDiagnosticMessageText(config.error.messageText, "\n")}`);
-  }
+  if (config.error) throw new Error(`[api-docs] ${ts.flattenDiagnosticMessageText(config.error.messageText, "\n")}`);
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, path.dirname(options.tsconfig));
+  // Only the package's own files are loaded. Imports between them still resolve.
   const program = ts.createProgram({
     rootNames: parsed.fileNames,
-    // Only the package's own files are loaded. Imports between them still resolve.
     options: { ...parsed.options, noResolve: true, noLib: true, types: [], noEmit: true },
   });
   const checker = program.getTypeChecker();
@@ -40,7 +83,7 @@ export function createAnalyzer(options: {
   const resolve = (symbol: ts.Symbol): ts.Symbol =>
     symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 
-  /** The local type alias or interface a type name points to, if any. */
+  /** The type alias or interface in this package that a type name points to, if any. */
   const localTypeDecl = (name: ts.Node): TypeDecl | undefined => {
     const symbol = checker.getSymbolAtLocation(name);
     const decl = symbol && resolve(symbol).declarations?.[0];
@@ -51,13 +94,7 @@ export function createAnalyzer(options: {
   const checkerType = (node: ts.Node) =>
     checker.typeToString(checker.getTypeAtLocation(node), undefined, ts.TypeFormatFlags.NoTruncation);
 
-  const inferredReturn = (s: ts.SignatureDeclaration): string | null => {
-    const signature = checker.getSignatureFromDeclaration(s);
-    const text = signature && checker.typeToString(checker.getReturnTypeOfSignature(signature));
-    return text && text !== "any" ? text : null;
-  };
-
-  /** Reads one module. Holds what it has seen so far, to find the types to document. */
+  /** Reads one module. Remembers the local types its API uses, so they can be documented too. */
   class ModuleReader {
     /** Exported symbol → name it is documented under. */
     private exported = new Map<ts.Symbol, string>();
@@ -79,9 +116,7 @@ export function createAnalyzer(options: {
       }
       for (const target of defaults) {
         const name = target.declarations?.[0] && ts.getNameOfDeclaration(target.declarations[0]);
-        if (!this.exported.has(target)) {
-          this.exported.set(target, name && ts.isIdentifier(name) ? name.text : target.name);
-        }
+        if (!this.exported.has(target)) this.exported.set(target, name && ts.isIdentifier(name) ? name.text : target.name);
       }
 
       const sections = [...this.exported]
@@ -102,34 +137,21 @@ export function createAnalyzer(options: {
       const decls = symbol.declarations ?? [];
       const decl = decls[0];
       if (!decl) return null;
-      if (ts.isFunctionDeclaration(decl)) {
-        return this.functionSection(name, isDefault, decls.filter(ts.isFunctionDeclaration), decl);
-      }
+      if (ts.isFunctionDeclaration(decl)) return this.functionSection(name, isDefault, decls.filter(ts.isFunctionDeclaration), decl);
       if (ts.isClassDeclaration(decl)) return this.classSection(name, isDefault, decl);
-      if (ts.isTypeAliasDeclaration(decl) || ts.isInterfaceDeclaration(decl)) {
-        return this.typeSection(name, decl, isDefault, false);
-      }
+      if (ts.isTypeAliasDeclaration(decl) || ts.isInterfaceDeclaration(decl)) return this.typeSection(name, decl, isDefault, false);
       if (ts.isVariableDeclaration(decl)) return this.variableSection(name, isDefault, decl);
       return null;
     }
 
     // ---------- Sections ----------
 
-    private functionSection(
-      name: string,
-      isDefault: boolean,
-      decls: readonly ts.SignatureDeclaration[],
-      docNode: ts.Node,
-    ): Section {
+    private functionSection(name: string, isDefault: boolean, decls: readonly ts.SignatureDeclaration[], docNode: ts.Node): Section {
       const main = decls[0]!;
-      const isComponent =
-        /^[A-Z]/.test(name) &&
-        main.parameters.length <= 1 &&
-        (main.type
-          ? /\b(JSX\.Element|ReactNode|ReactElement)\b/.test(main.type.getText())
-          : main.getSourceFile().fileName.endsWith(".tsx"));
-
-      if (!isComponent) {
+      const returnsComponent = main.type
+        ? COMPONENT_RETURN_TYPE.test(main.type.getText())
+        : main.getSourceFile().fileName.endsWith(".tsx");
+      if (!/^[A-Z]/.test(name) || main.parameters.length > 1 || !returnsComponent) {
         const fn = this.fn(name, decls, docNode);
         return { kind: "function", name, isDefault, doc: fn.doc, fn };
       }
@@ -152,12 +174,9 @@ export function createAnalyzer(options: {
       if (init && ts.isObjectLiteralExpression(init)) {
         // An object of only functions, like `Time`, documents each function.
         const members = init.properties.map((p) => this.objectMember(name, p));
-        if (members.length > 0 && members.every((m) => m !== null)) {
-          return { ...base, kind: "namespace", members: members as Member[] };
-        }
+        if (members.length > 0 && members.every((m) => m !== null)) return { ...base, kind: "namespace", members: members as Member[] };
         return { ...base, kind: "object", props: this.propsFromObject(init) };
       }
-
       if (init && ts.isNewExpression(init)) {
         const classSymbol = checker.getSymbolAtLocation(init.expression);
         const target = classSymbol && resolve(classSymbol);
@@ -165,14 +184,11 @@ export function createAnalyzer(options: {
           return { ...base, kind: "instance", className: this.exported.get(target) ?? target.name };
         }
       }
-
-      // `const LimitLines1: StyledComponent<Props> = styled(...)` is a component.
       const typeRef = decl.type && ts.isTypeReferenceNode(decl.type) ? decl.type : undefined;
       const propsArg = typeRef?.typeArguments?.[0];
-      if (propsArg && /(^|\.)(StyledComponent|ComponentType|FC|FunctionComponent)$/.test(typeRef!.typeName.getText())) {
+      if (propsArg && COMPONENT_TYPE.test(typeRef!.typeName.getText())) {
         return { ...base, kind: "component", typeParams: "", ...this.propsFromType(propsArg) };
       }
-
       const type = decl.type ? this.typeText(decl.type) : checkerType(decl);
       return { ...base, kind: "variable", signature: `const ${name}: ${type}` };
     }
@@ -182,10 +198,9 @@ export function createAnalyzer(options: {
       const props: Prop[] = [];
       const methods = new Map<string, { decls: ts.SignatureDeclaration[]; docNode: ts.Node; isStatic: boolean }>();
 
-      // `constructor(public x: number)` also declares a property.
+      // `constructor(public x: number)` also declares a property, described by the constructor's `@param`.
       for (const param of ctors.flatMap((c) => c.parameters)) {
         if (!ts.isParameterPropertyDeclaration(param, param.parent) || !isPublic(param)) continue;
-        // Described by the constructor's `@param`, so it does not need writing twice.
         const readonly = hasModifier(param, ts.SyntaxKind.ReadonlyKeyword);
         props.push(this.param(param, this.doc(param.parent), { readonly, optional: false, defaultValue: null }));
       }
@@ -194,34 +209,28 @@ export function createAnalyzer(options: {
         if (!member.name || ts.isPrivateIdentifier(member.name) || !isPublic(member)) continue;
         const memberName = member.name.getText();
         const isStatic = hasModifier(member, ts.SyntaxKind.StaticKeyword);
-        const readonly = hasModifier(member, ts.SyntaxKind.ReadonlyKeyword);
         const signature = methodSignature(member);
-
         if (signature) {
+          // Overloads share a name, so they are collected first.
           const method = methods.get(memberName) ?? { decls: [], docNode: member, isStatic };
           method.decls.push(signature);
           methods.set(memberName, method);
         } else if (ts.isPropertyDeclaration(member)) {
+          const { type, initializer: init } = member;
           props.push(
             prop(memberName, {
-              type: member.type ? this.typeText(member.type) : member.initializer ? this.valueType(member.initializer) : null,
+              type: type ? this.typeText(type) : init ? this.valueType(init) : null,
               optional: !!member.questionToken,
               isStatic,
-              readonly,
-              defaultValue: member.initializer ? literalText(member.initializer) : null,
+              readonly: hasModifier(member, ts.SyntaxKind.ReadonlyKeyword),
+              defaultValue: init ? literalText(init) : null,
               doc: this.doc(member),
             }),
           );
         } else if (ts.isGetAccessorDeclaration(member)) {
           const hasSetter = decl.members.some((m) => ts.isSetAccessorDeclaration(m) && m.name.getText() === memberName);
-          props.push(
-            prop(memberName, {
-              type: member.type ? this.typeText(member.type) : null,
-              isStatic,
-              readonly: !hasSetter,
-              doc: this.doc(member),
-            }),
-          );
+          const type = member.type ? this.typeText(member.type) : null;
+          props.push(prop(memberName, { type, isStatic, readonly: !hasSetter, doc: this.doc(member) }));
         }
       }
 
@@ -230,7 +239,7 @@ export function createAnalyzer(options: {
         owner: name,
         fn: this.fn(`${name}.${memberName}`, m.decls, m.docNode, m.isStatic ? "static " : ""),
       }));
-      const heritage = decl.heritageClauses?.map((h) => ` ${this.typeText(h)}`).join("") ?? "";
+      const heritage = this.heritage(decl);
       return {
         kind: "class",
         name,
@@ -247,8 +256,8 @@ export function createAnalyzer(options: {
       const typeParams = this.typeParams(decl);
       const base = { kind: "type" as const, name, isDefault, internal, doc: this.doc(decl), code: null };
       if (ts.isInterfaceDeclaration(decl)) {
-        const heritage = decl.heritageClauses?.map((h) => ` ${this.typeText(h)}`).join("") ?? "";
-        return { ...base, header: `interface ${name}${typeParams}${heritage}`, props: this.propsFromMembers(decl.members) };
+        const header = `interface ${name}${typeParams}${this.heritage(decl)}`;
+        return { ...base, header, props: this.propsFromMembers(decl.members) };
       }
       const header = `type ${name}${typeParams}`;
       if (ts.isTypeLiteralNode(decl.type)) return { ...base, header, props: this.propsFromMembers(decl.type.members) };
@@ -258,12 +267,12 @@ export function createAnalyzer(options: {
 
     // ---------- Functions ----------
 
+    /** A function of an object namespace like `Time`, or `null` if the value is not a function. */
     private objectMember(owner: string, p: ts.ObjectLiteralElementLike): Member | null {
       if (!p.name || !(ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))) return null;
       const init = ts.isPropertyAssignment(p) ? unwrap(p.initializer) : undefined;
       const fn = ts.isMethodDeclaration(p) ? p : init && isFunctionExpression(init) ? init : undefined;
-      if (!fn) return null;
-      return { name: p.name.text, owner, fn: this.fn(`${owner}.${p.name.text}`, [fn], p) };
+      return fn ? { name: p.name.text, owner, fn: this.fn(`${owner}.${p.name.text}`, [fn], p) } : null;
     }
 
     /** `decls` holds every overload. Only the overloads are shown, not the implementation. */
@@ -285,38 +294,46 @@ export function createAnalyzer(options: {
       const params = s.parameters.map((p) => {
         if (p.type) this.noteTypes(p.type);
         // Drop `public`/`readonly` from constructor parameter properties.
-        const plain = p.modifiers
-          ? ts.factory.updateParameterDeclaration(p, undefined, p.dotDotDotToken, p.name, p.questionToken, p.type, p.initializer)
-          : p;
-        return this.print(plain);
+        const { dotDotDotToken, name, questionToken, type, initializer } = p;
+        return this.print(p.modifiers ? ts.factory.updateParameterDeclaration(p, undefined, dotDotDotToken, name, questionToken, type, initializer) : p);
       });
       const returnType = this.returnType(s);
       const returns = arrow ? ` => ${returnType ?? "unknown"}` : returnType ? `: ${returnType}` : "";
       return oneLine(`${this.typeParams(s)}(${params.join(", ")})${returns}`);
     }
 
+    /** The written return type, else the inferred one. `null` for constructors and `any`. */
     private returnType(s: ts.SignatureDeclaration): string | null {
       if (ts.isConstructorDeclaration(s)) return null;
-      return s.type ? this.typeText(s.type) : inferredReturn(s);
+      if (s.type) return this.typeText(s.type);
+      const signature = checker.getSignatureFromDeclaration(s);
+      const text = signature && checker.typeToString(checker.getReturnTypeOfSignature(signature));
+      return text && text !== "any" ? text : null;
     }
 
     private param(p: ts.ParameterDeclaration, fnDoc: Doc, fields: Partial<Prop> = {}): Prop {
       const name = p.name.getText();
-      // Inline option objects, like `options?: { loop?: boolean }`, list their fields.
-      const nested = p.type && ts.isTypeLiteralNode(p.type) ? p.type : undefined;
       const doc = emptyDoc();
       doc.description = fnDoc.params.get(name) || this.commentText(getOwnJsDoc(p)?.comment);
-      return prop(`${p.dotDotDotToken ? "..." : ""}${name}`, {
-        type: nested ? "object" : p.type ? this.typeText(p.type) : null,
+      return this.typedProp(`${p.dotDotDotToken ? "..." : ""}${name}`, p.type, {
         optional: !!p.questionToken || !!p.initializer,
         defaultValue: p.initializer ? oneLine(this.print(p.initializer)) : null,
         doc,
-        children: nested ? this.propsFromMembers(nested.members) : [],
         ...fields,
       });
     }
 
     // ---------- Props ----------
+
+    /** A prop with a written type. Inline object types, like `options?: { loop?: boolean }`, list their fields. */
+    private typedProp(name: string, type: ts.TypeNode | undefined, fields: Partial<Prop>): Prop {
+      const nested = type && ts.isTypeLiteralNode(type) ? type : undefined;
+      return prop(name, {
+        type: nested ? "object" : type ? this.typeText(type) : null,
+        children: nested ? this.propsFromMembers(nested.members) : [],
+        ...fields,
+      });
+    }
 
     /**
      * Lists the props of a component's props type. Props declared in this package
@@ -324,59 +341,36 @@ export function createAnalyzer(options: {
      * named, since they can have hundreds of props.
      */
     private propsFromType(node: ts.TypeNode, seen = new Set<ts.Node>()): PropsResult {
-      const merge = (parts: PropsResult[]): PropsResult => ({
-        props: parts.flatMap((p) => p.props),
-        inherits: parts.flatMap((p) => p.inherits),
-      });
+      const merge = (parts: PropsResult[]) => ({ props: parts.flatMap((p) => p.props), inherits: parts.flatMap((p) => p.inherits) });
       if (ts.isParenthesizedTypeNode(node)) return this.propsFromType(node.type, seen);
       if (ts.isTypeLiteralNode(node)) return { props: this.propsFromMembers(node.members), inherits: [] };
       if (ts.isIntersectionTypeNode(node)) return merge(node.types.map((t) => this.propsFromType(t, seen)));
       if (ts.isTypeReferenceNode(node)) {
-        if (/(^|\.)PropsWithChildren$/.test(node.typeName.getText())) {
+        if (PROPS_WITH_CHILDREN.test(node.typeName.getText())) {
           const inner = node.typeArguments?.[0];
-          const children = prop("children", { type: "ReactNode", optional: true });
-          return merge([inner ? this.propsFromType(inner, seen) : { props: [], inherits: [] }, { props: [children], inherits: [] }]);
+          const children = { props: [prop("children", { type: "ReactNode", optional: true })], inherits: [] };
+          return merge([inner ? this.propsFromType(inner, seen) : { props: [], inherits: [] }, children]);
         }
-        const decl = this.localTypeDecl(node.typeName, seen);
-        if (decl) {
+        const decl = localTypeDecl(node.typeName);
+        if (decl && !seen.has(decl)) {
+          seen.add(decl); // Each type is followed once, so recursive types don't loop.
           if (ts.isTypeAliasDeclaration(decl)) return this.propsFromType(decl.type, seen);
-          return {
-            props: this.propsFromMembers(decl.members),
-            inherits: decl.heritageClauses?.flatMap((h) => h.types.map((t) => this.typeText(t))) ?? [],
-          };
+          const inherits = decl.heritageClauses?.flatMap((h) => h.types.map((t) => this.typeText(t))) ?? [];
+          return { props: this.propsFromMembers(decl.members), inherits };
         }
       }
       return { props: [], inherits: [this.typeText(node)] };
     }
 
-    /** Like the shared `localTypeDecl`, but each declaration is only followed once. */
-    private localTypeDecl(name: ts.Node, seen: Set<ts.Node>): TypeDecl | undefined {
-      const decl = localTypeDecl(name);
-      if (!decl || seen.has(decl)) return undefined;
-      seen.add(decl);
-      return decl;
-    }
-
+    /** The members of an interface or object type. */
     private propsFromMembers(members: ts.NodeArray<ts.TypeElement>): Prop[] {
       return members.flatMap((m): Prop[] => {
         const doc = this.doc(m);
         if (doc.hidden) return [];
         const readonly = hasModifier(m, ts.SyntaxKind.ReadonlyKeyword);
-        if (ts.isPropertySignature(m)) {
-          const nested = m.type && ts.isTypeLiteralNode(m.type) ? m.type : undefined;
-          return [
-            prop(m.name.getText(), {
-              type: nested ? "object" : m.type ? this.typeText(m.type) : null,
-              optional: !!m.questionToken,
-              readonly,
-              doc,
-              children: nested ? this.propsFromMembers(nested.members) : [],
-            }),
-          ];
-        }
-        if (ts.isMethodSignature(m)) {
-          return [prop(m.name.getText(), { type: this.signature(m, true), optional: !!m.questionToken, doc })];
-        }
+        const optional = !!m.questionToken;
+        if (ts.isPropertySignature(m)) return [this.typedProp(m.name.getText(), m.type, { optional, readonly, doc })];
+        if (ts.isMethodSignature(m)) return [prop(m.name.getText(), { type: this.signature(m, true), optional, doc })];
         if (ts.isIndexSignatureDeclaration(m)) {
           const key = oneLine(m.parameters.map((p) => this.print(p)).join(", "));
           return [prop(`[${key}]`, { type: this.typeText(m.type), readonly, doc })];
@@ -385,6 +379,7 @@ export function createAnalyzer(options: {
       });
     }
 
+    /** The properties of an object literal, like a settings object. */
     private propsFromObject(obj: ts.ObjectLiteralExpression): Prop[] {
       return obj.properties.flatMap((p): Prop[] => {
         if (!p.name || ts.isComputedPropertyName(p.name)) return [];
@@ -393,14 +388,9 @@ export function createAnalyzer(options: {
         const name = p.name.getText();
         if (ts.isPropertyAssignment(p)) {
           const nested = ts.isObjectLiteralExpression(p.initializer) ? p.initializer : undefined;
-          return [
-            prop(name, {
-              type: nested ? "object" : this.valueType(p.initializer),
-              defaultValue: literalText(p.initializer),
-              doc,
-              children: nested ? this.propsFromObject(nested) : [],
-            }),
-          ];
+          const type = nested ? "object" : this.valueType(p.initializer);
+          const children = nested ? this.propsFromObject(nested) : [];
+          return [prop(name, { type, defaultValue: literalText(p.initializer), doc, children })];
         }
         if (ts.isMethodDeclaration(p)) return [prop(name, { type: this.signature(p, true), doc })];
         if (ts.isShorthandPropertyAssignment(p)) return [prop(name, { type: checkerType(p), doc })];
@@ -413,9 +403,7 @@ export function createAnalyzer(options: {
       if (ts.isAsExpression(init) || ts.isSatisfiesExpression(init)) return this.typeText(init.type);
       if (ts.isParenthesizedExpression(init)) return this.valueType(init.expression);
       if (isFunctionExpression(init)) return this.signature(init, true);
-      if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init) || ts.isTemplateExpression(init)) {
-        return "string";
-      }
+      if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init) || ts.isTemplateExpression(init)) return "string";
       if (ts.isNumericLiteral(init)) return "number";
       if (init.kind === ts.SyntaxKind.TrueKeyword || init.kind === ts.SyntaxKind.FalseKeyword) return "boolean";
       if (ts.isObjectLiteralExpression(init)) return "object";
@@ -424,23 +412,24 @@ export function createAnalyzer(options: {
 
     // ---------- Types ----------
 
+    /** A type on one line. Also remembers the local types in it. */
     private typeText(node: ts.Node): string {
       this.noteTypes(node);
       return oneLine(this.print(node));
     }
 
     private typeParams(node: { typeParameters?: ts.NodeArray<ts.TypeParameterDeclaration> }): string {
-      if (!node.typeParameters?.length) return "";
-      return `<${node.typeParameters.map((t) => this.typeText(t)).join(", ")}>`;
+      return node.typeParameters?.length ? `<${node.typeParameters.map((t) => this.typeText(t)).join(", ")}>` : "";
+    }
+
+    /** ` extends A implements B`, or `""`. */
+    private heritage(decl: ts.ClassDeclaration | ts.InterfaceDeclaration): string {
+      return decl.heritageClauses?.map((h) => ` ${this.typeText(h)}`).join("") ?? "";
     }
 
     /** Remembers local types used by the API, so they can be documented too. */
     private noteTypes(node: ts.Node): void {
-      const name = ts.isTypeReferenceNode(node)
-        ? node.typeName
-        : ts.isExpressionWithTypeArguments(node)
-          ? node.expression
-          : undefined;
+      const name = ts.isTypeReferenceNode(node) ? node.typeName : ts.isExpressionWithTypeArguments(node) ? node.expression : undefined;
       if (name && localTypeDecl(name)) {
         const symbol = resolve(checker.getSymbolAtLocation(name)!);
         if (!this.exported.has(symbol) && !this.referenced.includes(symbol)) this.referenced.push(symbol);
@@ -450,8 +439,7 @@ export function createAnalyzer(options: {
 
     private print(node: ts.Node): string {
       // Nodes can come from other files in the package, and edited copies have no parent.
-      const sf = ts.getOriginalNode(node).getSourceFile() ?? this.sf;
-      return printer.printNode(ts.EmitHint.Unspecified, node, sf);
+      return printer.printNode(ts.EmitHint.Unspecified, node, ts.getOriginalNode(node).getSourceFile() ?? this.sf);
     }
 
     // ---------- JSDoc ----------
@@ -460,64 +448,32 @@ export function createAnalyzer(options: {
       const jsDoc = getJsDoc(node);
       const doc = emptyDoc();
       doc.description = this.commentText(jsDoc?.comment);
-      const appendDescription = (text: string) => {
-        doc.description = [doc.description, text].filter(Boolean).join("\n\n");
-      };
       for (const tag of jsDoc?.tags ?? []) {
         const text = this.commentText(tag.comment);
-        if (ts.isJSDocParameterTag(tag)) doc.params.set(tag.name.getText(), text);
-        else if (ts.isJSDocReturnTag(tag)) doc.returns = text;
-        else if (ts.isJSDocAugmentsTag(tag)) appendDescription(`Extends \`${tag.class.getText()}\`.${text ? ` ${text}` : ""}`);
-        else if (ts.isJSDocDeprecatedTag(tag)) doc.deprecated = text || "This is deprecated.";
-        else if (ts.isJSDocSeeTag(tag)) {
-          // `@see https://x` parses as the name `https` followed by the comment `://x`.
-          // Self links are already dropped, so trim separators left behind, e.g. the `|` in `Guide | API`.
-          const raw = `${tag.name ? tag.name.getText() : ""}${text}`.replace(/^[\s|,;·—-]+|[\s|,;·—-]+$/g, "");
-          if (raw && !isSelfLink(raw)) doc.see.push(/^https?:\/\/\S+$/.test(raw) ? `[${raw}](${raw})` : raw);
-        } else {
-          switch (tag.tagName.text) {
-            case "example":
-              doc.examples.push(ts.getTextOfJSDocComment(tag.comment)?.replace(/^\n+|\s+$/g, "") ?? "");
-              break;
-            case "default":
-            case "defaultValue":
-              doc.defaultValue = text;
-              break;
-            case "remarks":
-              appendDescription(text);
-              break;
-            case "internal":
-            case "hidden":
-            case "ignore":
-              doc.hidden = true;
-              break;
-          }
+        if (!ts.isJSDocSeeTag(tag)) {
+          TAGS.get(tagName(tag))?.(doc, text, tag);
+          continue;
         }
+        // `@see https://x` parses as the name `https` followed by the comment `://x`.
+        // Self links are already dropped, so trim separators left behind, e.g. the `|` in `Guide | API`.
+        const raw = `${tag.name ? tag.name.getText() : ""}${text}`.replace(/^[\s|,;·—-]+|[\s|,;·—-]+$/g, "");
+        if (raw && !isSelfLink(raw)) doc.see.push(/^https?:\/\/\S+$/.test(raw) ? `[${raw}](${raw})` : raw);
       }
       return doc;
     }
 
     /** Flattens a JSDoc comment to markdown, turning `{@link}` into links or inline code. */
-    private commentText(comment: string | ts.NodeArray<ts.JSDocComment> | undefined): string {
+    private commentText(comment: Comment): string {
       if (!comment) return "";
-      const text =
-        typeof comment === "string"
-          ? comment
-          : comment
-              .map((part) => {
-                if (part.kind === ts.SyntaxKind.JSDocText) return part.text;
-                // TS splits URLs oddly: `https://x Label` parses as name "https", text "://x Label".
-                const raw = `${part.name ? part.name.getText() : ""}${part.text}`.trim();
-                const [target = "", ...words] = raw.split(/\s+/);
-                const label = words.join(" ") || target;
-                if (!/^https?:\/\//.test(target)) return `\`${label}\``;
-                return isSelfLink(target) ? "" : `[${label}](${target})`;
-              })
-              .join("");
-      return text
-        .replace(/[ \t]+$/gm, "")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
+      const parts = typeof comment === "string" ? [comment] : comment.map((part) => {
+        if (part.kind === ts.SyntaxKind.JSDocText) return part.text;
+        // TS splits URLs oddly: `https://x Label` parses as name "https", text "://x Label".
+        const [target = "", ...words] = `${part.name ? part.name.getText() : ""}${part.text}`.trim().split(/\s+/);
+        const label = words.join(" ") || target;
+        if (!/^https?:\/\//.test(target)) return `\`${label}\``;
+        return isSelfLink(target) ? "" : `[${label}](${target})`;
+      });
+      return parts.join("").replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n").trim();
     }
   }
 
@@ -532,22 +488,20 @@ export function createAnalyzer(options: {
 
 // ---------- Helpers ----------
 
-function getOwnJsDoc(node: ts.Node): ts.JSDoc | undefined {
-  return (node as { jsDoc?: ts.JSDoc[] }).jsDoc?.at(-1);
+function appendDescription(doc: Doc, text: string): void {
+  doc.description = [doc.description, text].filter(Boolean).join("\n\n");
 }
 
-function getJsDoc(node: ts.Node): ts.JSDoc | undefined {
-  return getOwnJsDoc(node) ?? ts.getJSDocCommentsAndTags(node).filter(ts.isJSDoc).at(-1);
-}
+const getOwnJsDoc = (node: ts.Node) => (node as { jsDoc?: ts.JSDoc[] }).jsDoc?.at(-1);
+const getJsDoc = (node: ts.Node) => getOwnJsDoc(node) ?? ts.getJSDocCommentsAndTags(node).filter(ts.isJSDoc).at(-1);
+const isFunctionExpression = (node: ts.Node): node is ts.ArrowFunction | ts.FunctionExpression =>
+  ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+const hasModifier = (node: ts.Node, kind: ts.SyntaxKind) =>
+  ts.canHaveModifiers(node) && !!ts.getModifiers(node)?.some((m) => m.kind === kind);
+const isPublic = (node: ts.Node) =>
+  !hasModifier(node, ts.SyntaxKind.PrivateKeyword) && !hasModifier(node, ts.SyntaxKind.ProtectedKeyword);
 
-function isFunctionExpression(node: ts.Node): node is ts.ArrowFunction | ts.FunctionExpression {
-  return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
-}
-
-/**
- * The signature of a class member that reads as a method: a method, or a
- * property holding a function, like `random: () => number = Math.random`.
- */
+/** A class member that reads as a method: a method, or a property holding a function, like `random = Math.random`. */
 function methodSignature(member: ts.ClassElement): ts.SignatureDeclaration | undefined {
   if (ts.isMethodDeclaration(member)) return member;
   if (!ts.isPropertyDeclaration(member)) return undefined;
@@ -556,42 +510,26 @@ function methodSignature(member: ts.ClassElement): ts.SignatureDeclaration | und
   return init && isFunctionExpression(init) ? init : undefined;
 }
 
+/** Removes `as`, `satisfies` and parentheses around an expression. */
 function unwrap(expr: ts.Expression): ts.Expression {
-  while (ts.isAsExpression(expr) || ts.isSatisfiesExpression(expr) || ts.isParenthesizedExpression(expr)) {
-    expr = expr.expression;
-  }
+  while (ts.isAsExpression(expr) || ts.isSatisfiesExpression(expr) || ts.isParenthesizedExpression(expr)) expr = expr.expression;
   return expr;
-}
-
-function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
-  return ts.canHaveModifiers(node) && !!ts.getModifiers(node)?.some((m) => m.kind === kind);
-}
-
-function isPublic(node: ts.Node): boolean {
-  return !hasModifier(node, ts.SyntaxKind.PrivateKeyword) && !hasModifier(node, ts.SyntaxKind.ProtectedKeyword);
 }
 
 /** The source text of a simple literal, used as a default value. */
 function literalText(init: ts.Expression): string | null {
-  const value = unwrap(init);
+  const v = unwrap(init);
   const simple =
-    ts.isStringLiteral(value) ||
-    ts.isNumericLiteral(value) ||
-    ts.isNoSubstitutionTemplateLiteral(value) ||
-    value.kind === ts.SyntaxKind.TrueKeyword ||
-    value.kind === ts.SyntaxKind.FalseKeyword ||
-    value.kind === ts.SyntaxKind.NullKeyword ||
-    (ts.isPrefixUnaryExpression(value) && ts.isNumericLiteral(value.operand)) ||
-    (ts.isIdentifier(value) && (value.text === "undefined" || value.text === "Infinity"));
-  return simple ? value.getText() : null;
+    ts.isStringLiteral(v) ||
+    ts.isNumericLiteral(v) ||
+    ts.isNoSubstitutionTemplateLiteral(v) ||
+    [ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword, ts.SyntaxKind.NullKeyword].some((k) => k === v.kind) ||
+    (ts.isPrefixUnaryExpression(v) && ts.isNumericLiteral(v.operand)) ||
+    (ts.isIdentifier(v) && (v.text === "undefined" || v.text === "Infinity"));
+  return simple ? v.getText() : null;
 }
 
 /** Collapses printed code to one line, e.g. `{ x: number; }` to `{ x: number }`. */
 function oneLine(text: string): string {
-  return text
-    .replace(/\s+/g, " ")
-    .replace(/([([]) /g, "$1")
-    .replace(/ ([)\]])/g, "$1")
-    .replace(/; }/g, " }")
-    .trim();
+  return text.replace(/\s+/g, " ").replace(/([([]) /g, "$1").replace(/ ([)\]])/g, "$1").replace(/; }/g, " }").trim();
 }

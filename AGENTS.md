@@ -110,23 +110,49 @@ both links, **no trailing `/`**, and no `#anchor` on the API link:
 
 ## Guide pages
 
-Library guide pages (`docs/docs/common/library/*`) use this structure (see
-`docs/docs/common/library/Random/index.mdx`):
+Guide pages (`docs/docs/common/{library,components}/*` and
+`docs/docs/mmd-player/component.mdx`) use this structure (see
+`docs/docs/common/library/Time/index.mdx`):
 
 ```mdx
 ---
 title: Name
+description: "One line on what it does. Shown on the package and category pages."
 ---
 
 ## Dependencies {#dependencies}
 
+"This library does not require any dependencies." or an `npm install` block
+(` ```bash npm2yarn `).
+
 ## Usage {#usage}
+
+The import, short notes on what to know, then:
+"The examples below are live. Edit the code to try your own values."
+
+### Example name {#example-name}
+
+A sentence on what to try, then a ` ```tsx live ` block.
+
+## API {#api}
+
+See the [Name API reference](/docs/api/common/library/Name) for every prop, method and type.
 ```
 
-Component guide pages (`docs/docs/common/components/*`) still use an older
-format: a dependency list, then live demos. Leave them as they are unless asked.
+Live examples are for trying things out. Prefer small playgrounds (inputs,
+sliders, buttons) that show the result on the page instead of `console.log`.
 
-Don't add API sections to guide pages. The API section is generated.
+- Anything used in a live block must be in the scope in
+  `docs/src/theme/ReactLiveScope/index.tsx`. Array is exposed as `ArrayUtil` so
+  it doesn't hide the built-in `Array`.
+- Use `REMOTE.base` for demo files, and `beepUrl(hz)` for
+  a short sound. `REMOTE.noname0310` can't be used for anything other then mmd-player.
+- Several components in one block need ` ```tsx live noInline ` and `render(<App />)`.
+- Pass stable arrays and objects (e.g. `useMemo`) to components that reset
+  when a prop changes, like `FileBrowser`.
+
+The `## API` section is only that one link. Don't copy props, methods or types
+into guide pages; the API page is generated from JSDoc.
 
 ## Checking your work
 

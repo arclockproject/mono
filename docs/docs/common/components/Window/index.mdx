@@ -1,32 +1,69 @@
 ---
 title: Window
+description: "A floating desktop-style window."
 ---
 
-Dependencies for `@arclockproject/common/components/Window` are
+## Dependencies {#dependencies}
 
+```bash npm2yarn
+npm install @mui/material @emotion/react @emotion/styled
 ```
-@mui/material @emotion/react @emotion/styled
+
+## Usage {#usage}
+
+```tsx
+import Window from "@arclockproject/common/components/Window";
 ```
 
-You can pass React Elements into the Window and not just strings.
-Additionally the window body has position relative on it so you can position absolute elements
-to any of the sides.
+A floating window. Drag it by the title bar, resize it from the right edge, bottom edge or
+bottom-right corner (mouse only), and maximize it with the `[ ]` button.
 
-Draggable window with example text.
+- You control whether it is shown with `open`. The close button only calls `onClose`, so set
+  `open` to `false` there.
+- You can put any React elements inside, not just text.
+- The window body has `position: relative`, so you can place absolutely positioned elements
+  against its sides.
+
+The example below is live. Edit the code to try your own values.
+
+### Example window {#example-window}
 
 ```tsx title="Example Window" live showLineNumbers
-<Window
-  open={false} // Replace me with true!
-  title="Title String"
-  onClose={() => console.log("Close clicked")}
-  onContextMenu={(event) => {
-    event.preventDefault();
-    console.log("Top right clicked");
-  }}
-  onFocus={() => console.log("Window focused")}
-  spawnCoordinate={{ x: 50, y: 300 }}
-  spawnSize={{ width: 350, height: 250 }}
->
-  ^ Click the title to drag me around!
-</Window>
+function WindowExample() {
+  const [open, setOpen] = useState(false);
+  const [log, setLog] = useState([]);
+  const add = (message) => setLog((list) => [message, ...list].slice(0, 4));
+
+  return (
+    <div>
+      <button onClick={() => setOpen(true)}>Open window</button>
+      {log.map((message, i) => (
+        <div key={i}><code>{message}</code></div>
+      ))}
+      <Window
+        open={open}
+        title="Title String"
+        onClose={() => {
+          add("onClose");
+          setOpen(false);
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          add("onContextMenu");
+        }}
+        onFocus={() => add("onFocus")}
+        spawnCoordinate={{ x: 50, y: 300 }}
+        spawnSize={{ width: 350, height: 250 }}
+      >
+        ^ Drag the title to move me, or the right or bottom edge to resize me. Right-click the
+        title for onContextMenu.
+        <span style={{ position: "absolute", right: 8, bottom: 8 }}>I'm in the corner.</span>
+      </Window>
+    </div>
+  );
+}
 ```
+
+## API {#api}
+
+See the [Window API reference](/docs/api/common/components/Window) for every prop, method and type.

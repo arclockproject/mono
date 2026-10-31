@@ -1,23 +1,30 @@
 ---
 title: PSDViewer
+description: "Shows a Photoshop (.psd) file."
 ---
 
-Dependencies for `@arclockproject/common/components/PSDViewer` are
+## Dependencies {#dependencies}
 
+```bash npm2yarn
+npm install @mui/material @emotion/react @emotion/styled @webtoon/psd
 ```
-@mui/material @emotion/react @emotion/styled @webtoon/psd
-```
 
-Demo assets were obtained from null
-
-Currently PSDViewer will display the embeded render of the psd file.
-To manipulate layers the image will be manually redrawn. The effectiveness of the redraws
-will depend on the provided file as many layer blend modes are not implemented which will cause
-layers to render not as expected.
+## Usage {#usage}
 
 ```tsx
 import PSDViewer from "@arclockproject/common/components/PSDViewer";
 ```
+
+Nothing downloads until the user clicks **Load PSD File**. Then the flattened image is shown,
+with a layer panel to turn layers on and off. Changing layers redraws the image from its layers.
+How close the redraw looks depends on the file, because many layer blend modes are not supported
+yet.
+
+PSDViewer fills its parent, so give the parent a size and `position: relative`.
+
+Demo assets were obtained from null.
+
+### Loading a PSD file {#loading-a-psd-file}
 
 ```tsx title="Loading PSD File from /demo-assets/null.png" live showLineNumbers
 <div>
@@ -28,3 +35,7 @@ import PSDViewer from "@arclockproject/common/components/PSDViewer";
   </div>
 </div>
 ```
+
+## API {#api}
+
+See the [PSDViewer API reference](/docs/api/common/components/PSDViewer) for every prop, method and type.

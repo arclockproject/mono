@@ -1,5 +1,6 @@
 ---
 title: AudioInstant
+description: "Play sounds with the Web Audio API, with no delay after loading."
 ---
 
 ## Dependencies {#dependencies}
@@ -24,3 +25,81 @@ function Example() {
   );
 }
 ```
+
+Browsers keep audio muted until the user has clicked or tapped the page. If sounds don't play,
+create your own `AudioInstantManager` after the first click, as the examples below do.
+
+`stopInstance` only stops sounds that were played with `gradual: true` and without
+`singleInstance`.
+
+The examples below are live. Edit the code to try your own values. `beepUrl(frequency)` is only
+available on this site. It makes a short beep so the examples don't need sound files.
+
+### Keyboard {#keyboard}
+
+Each key plays a beep straight from memory, so fast clicks play right away.
+
+```tsx live
+function Keyboard() {
+  const manager = useRef(null);
+  const keys = { C: 262, D: 294, E: 330, F: 349, G: 392, A: 440, B: 494, "C²": 523 };
+
+  const play = (frequency) => {
+    manager.current ??= new AudioInstantManager();
+    manager.current.play(beepUrl(frequency));
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 2 }}>
+      {Object.entries(keys).map(([name, frequency]) => (
+        <button
+          key={name}
+          onMouseDown={() => play(frequency)}
+          style={{ width: 40, height: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+### Music {#music}
+
+A looping track that fades in. It is played with `gradual: true` so `stopInstance` can stop it.
+
+```tsx live
+function Music() {
+  const song = `${REMOTE.base}/PXQZNGjZIFo.m4a`;
+  const manager = useRef(null);
+  const [state, setState] = useState("stopped");
+
+  // Stop the music when this example is removed from the page.
+  useEffect(() => () => manager.current?.stopInstance(song), []);
+
+  const play = async () => {
+    manager.current ??= new AudioInstantManager();
+    setState("loading");
+    await manager.current.play(song, { loop: true, gradual: true });
+    setState("playing");
+  };
+
+  const stop = () => {
+    manager.current.stopInstance(song);
+    setState("stopped");
+  };
+
+  return (
+    <div>
+      <button onClick={play} disabled={state !== "stopped"}>Play</button>{" "}
+      <button onClick={stop} disabled={state !== "playing"}>Stop</button>{" "}
+      {state === "loading" && "Downloading…"}
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [AudioInstant API reference](/docs/api/common/library/AudioInstant) for every prop, method and type.

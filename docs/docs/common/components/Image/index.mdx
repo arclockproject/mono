@@ -1,20 +1,25 @@
 ---
 title: Image
+description: "An image, video or PSD that can be dragged and zoomed."
 ---
 
-Dependencies for `@arclockproject/common/components/Image` are
+## Dependencies {#dependencies}
 
-```
-No dependencies required.
-```
+This component does not require any dependencies.
 
-## Image without PSDViewer
+To show `.psd` files, it also needs [PSDViewer](../PSDViewer/index.mdx) and its dependencies.
 
-Only image without PSD Renderer. PSD files will try to load as images`,
+## Usage {#usage}
 
 ```tsx
 import Image from "@arclockproject/common/components/Image";
 ```
+
+The examples below are live. Edit the code to try your own values. Drag the image to move it.
+
+### Image without PSDViewer {#image-without-psdviewer}
+
+Without a PSD renderer, `.psd` files are loaded as normal images.
 
 ```tsx live showLineNumbers
 <Image
@@ -32,9 +37,9 @@ import Image from "@arclockproject/common/components/Image";
 />
 ```
 
-## Image with PSDViewer
+### Image with PSDViewer {#image-with-psdviewer}
 
-Image not wrapped in a container.
+`.psd` files are shown with `PSDViewer`.
 
 ```tsx
 import Image from "@arclockproject/common/components/Image";
@@ -61,14 +66,10 @@ import PSDViewer from "@arclockproject/common/components/PSDViewer";
 />
 ```
 
-## Image with PSDViewer Lazy
+### Image with lazy PSDViewer {#image-with-lazy-psdviewer}
 
-Image not wrapped in a container (Lazy).
-
-Alternatively for bundle size regarding PSDViewer you can lazy load it.
-Component will handle `<Suspense />` internally so there is no need to wrap the image with it..
-With this, the import will be loaded only when required.
-This way you can support PSDViewer without loading it in cases when it is not needed.
+To keep your bundle small, load `PSDViewer` lazily. It is only downloaded when a `.psd` file is
+shown. `Image` wraps it in `<Suspense />` for you, so you don't need to add one.
 
 ```tsx
 import Image from "@arclockproject/common/components/Image";
@@ -97,3 +98,7 @@ const PSDViewer = lazy(
   }}
 />
 ```
+
+## API {#api}
+
+See the [Image API reference](/docs/api/common/components/Image) for every prop, method and type.

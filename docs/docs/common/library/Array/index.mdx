@@ -1,5 +1,6 @@
 ---
 title: Array
+description: "Shuffle, swap and remove items in place."
 ---
 
 ## Dependencies {#dependencies}
@@ -22,3 +23,96 @@ console.log(x === y); // true
 Array.swap(x, 0, 2);
 console.log(x); // [3, 4, 1, 2, 0, 5]
 ```
+
+`shuffle` and `swap` change the array you pass in and return that same array. Copy it first
+(`[...array]`) if you need to keep the original order.
+
+The examples below are live. Edit the code to try your own values. In them the library is
+called `ArrayUtil`, so it doesn't hide JavaScript's built-in `Array`.
+
+### Shuffle, swap and remove {#shuffle-swap-and-remove}
+
+```tsx live
+function ArrayPlayground() {
+  const [items] = useState(() => ["a", "b", "c", "d", "e", "f"]);
+  const [, rerender] = useState(0);
+  const [log, setLog] = useState("");
+  const [i, setI] = useState(0);
+  const [j, setJ] = useState(2);
+  const [toRemove, setToRemove] = useState("c");
+
+  const run = (label, fn) => {
+    const result = fn();
+    setLog(`${label} → ${JSON.stringify(result === items ? "same array" : result)}`);
+    rerender((n) => n + 1);
+  };
+
+  return (
+    <div>
+      <p style={{ fontSize: "1.5rem" }}><code>{JSON.stringify(items)}</code></p>
+      <button onClick={() => run("shuffle", () => ArrayUtil.shuffle(items))}>
+        Shuffle
+      </button>{" "}
+      <button onClick={() => run(`swap ${i} and ${j}`, () => ArrayUtil.swap(items, i, j))}>
+        Swap
+      </button>{" "}
+      <input 
+        type="number"
+        value={i}
+        onChange={(e) => setI(Number(e.target.value))}
+        style={{ width: 50 }}
+      />{" "}
+      <input
+        type="number"
+        value={j}
+        onChange={(e) => setJ(Number(e.target.value))}
+        style={{ width: 50 }}
+      />{" "}
+      <button onClick={() => run(`remove "${toRemove}"`, () => ArrayUtil.remove(items, toRemove))}>
+        Remove
+      </button>{" "}
+      <input
+        value={toRemove}
+        onChange={(e) => setToRemove(e.target.value)}
+        style={{ width: 50 }}
+      />{" "}
+      <button onClick={() => run("reset", () =>
+        items.splice(0, items.length, "a", "b", "c", "d", "e", "f") && items
+      )}>
+        Reset
+      </button>
+      <p>{log}</p>
+    </div>
+  );
+}
+```
+
+### Dealing cards {#dealing-cards}
+
+Shuffle a copy of the deck, then take cards from the top.
+
+```tsx live
+function DealCards() {
+  const deck = ["♠", "♥", "♦", "♣"].flatMap((suit) =>
+    ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"].map((rank) => rank + suit),
+  );
+  const [hand, setHand] = useState([]);
+
+  return (
+    <div>
+      <button onClick={() => setHand(ArrayUtil.shuffle([...deck]).slice(0, 5))}>Deal 5 cards</button>
+      <p style={{ fontSize: "2rem" }}>
+        {hand.map((card) => (
+          <span key={card} style={{ marginRight: 12, color: /[♥♦]/.test(card) ? "crimson" : undefined }}>
+            {card}
+          </span>
+        ))}
+      </p>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [Array API reference](/docs/api/common/library/Array) for every prop, method and type.

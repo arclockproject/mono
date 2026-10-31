@@ -6,14 +6,40 @@ sidebar_position: 3
 
 # Roadmap
 
-Components Planned for migration (and improvements)
+What's planned next. Most of it is existing code from other projects being moved
+into these packages and improved along the way.
 
-- Horizontal/Vertical Data Carousel
-- Horizontal/Vertical Data Browser (Caching, Jump To, BookMode, Settings, etc...)
-- Audio Mixer (Pan Audios, Adjust Speed, Distort Pitch, Independent Start/End times)
+:::note
 
-Improvements
+This list can change. More may be added depending on how much work each move
+needs and the state of the projects it comes from.
 
-- Allow direct video data to be passed to `components/Player`
+:::
 
-More might be added depending on the migration work needed and state of projects.
+## New components {#new-components}
+
+### Data Carousel {#data-carousel}
+
+A carousel for scrolling through data, horizontally or vertically.
+
+### Data Browser {#data-browser}
+
+A browser for paging through data, horizontally or vertically.
+
+- Caching
+- Jump to a position
+- Book mode
+- Settings
+
+### Audio Mixer {#audio-mixer}
+
+Play and mix several audio tracks.
+
+- Pan each track
+- Adjust speed
+- Distort pitch
+- Separate start and end times per track
+
+## Improvements {#improvements}
+
+- **[Player](./common/components/Player/index.mdx):** pass video data to it directly.

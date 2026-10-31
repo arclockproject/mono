@@ -1,4 +1,6 @@
-/** Parsed JSDoc of a single declaration. Text is markdown. */
+/** The data passed from `extract.ts` (reads TypeScript) to `render.ts` (writes MDX). Text is markdown. */
+
+/** Parsed JSDoc of a single declaration. */
 export type Doc = {
   description: string;
   params: Map<string, string>;
@@ -20,7 +22,7 @@ export type Prop = {
   readonly: boolean;
   defaultValue: string | null;
   doc: Doc;
-  /** Set when the type is an inline object, so its fields can be listed too. */
+  /** Fields of an inline object type, e.g. `options?: { loop?: boolean }`. */
   children: Prop[];
 };
 
@@ -33,58 +35,40 @@ export type Fn = {
 };
 
 /** A method of a class or a function of an object namespace like `Time`. */
-export type Member = {
-  name: string;
-  /** The export it belongs to, e.g. `Time` for `Time.timeSince`. */
-  owner: string;
-  fn: Fn;
-};
+export type Member = { name: string; owner: string; fn: Fn };
 
-type Base = { name: string; isDefault: boolean; doc: Doc };
+/** One `##` section of a page. To add a kind, add it here, in `extract.ts` and in `KINDS` in `render.ts`. */
+export type Section = { name: string; isDefault: boolean; doc: Doc } & (
+  | { kind: "function"; fn: Fn }
+  | { kind: "component"; typeParams: string; props: Prop[]; inherits: string[] }
+  | { kind: "namespace"; members: Member[] } // An object of functions, like `Time`.
+  | { kind: "object"; props: Prop[] }
+  | { kind: "class"; header: string; ctor: Fn | null; props: Prop[]; members: Member[] }
+  | { kind: "instance"; className: string } // `const x = new SomeClass()`.
+  | { kind: "variable"; signature: string }
+  /** `code` is the full type for non-object types. `internal`: not exported, but used by the API. */
+  | { kind: "type"; header: string; code: string | null; props: Prop[]; internal: boolean }
+);
 
-export type Section = Base &
-  (
-    | { kind: "function"; fn: Fn }
-    | { kind: "component"; typeParams: string; props: Prop[]; inherits: string[] }
-    | { kind: "namespace"; members: Member[] }
-    | { kind: "object"; props: Prop[] }
-    | { kind: "class"; header: string; ctor: Fn | null; props: Prop[]; members: Member[] }
-    | { kind: "instance"; className: string }
-    | { kind: "variable"; signature: string }
-    | {
-        kind: "type";
-        header: string;
-        /** The full type, for types that are not plain objects. */
-        code: string | null;
-        props: Prop[];
-        /** Not exported, but used by the exported API. */
-        internal: boolean;
-      }
-  );
+export const emptyDoc = (): Doc => ({
+  description: "",
+  params: new Map(),
+  returns: null,
+  examples: [],
+  defaultValue: null,
+  deprecated: null,
+  see: [],
+  hidden: false,
+});
 
-export function emptyDoc(): Doc {
-  return {
-    description: "",
-    params: new Map(),
-    returns: null,
-    examples: [],
-    defaultValue: null,
-    deprecated: null,
-    see: [],
-    hidden: false,
-  };
-}
-
-export function prop(name: string, fields: Partial<Prop> = {}): Prop {
-  return {
-    name,
-    type: null,
-    optional: false,
-    isStatic: false,
-    readonly: false,
-    defaultValue: null,
-    doc: emptyDoc(),
-    children: [],
-    ...fields,
-  };
-}
+export const prop = (name: string, fields: Partial<Prop> = {}): Prop => ({
+  name,
+  type: null,
+  optional: false,
+  isStatic: false,
+  readonly: false,
+  defaultValue: null,
+  doc: emptyDoc(),
+  children: [],
+  ...fields,
+});

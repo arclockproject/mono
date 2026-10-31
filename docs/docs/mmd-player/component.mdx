@@ -1,22 +1,32 @@
 ---
 title: Component
+description: "The MMD player component, with a full working example."
 ---
 
-Dependencies for `@arclockproject/mmd-player` are
+## Dependencies {#dependencies}
 
+```bash npm2yarn
+npm install @mui/material @mui/icons-material @mui/x-tree-view @emotion/react @emotion/styled wanakana
 ```
-@mui/material @emotion/react @emotion/styled @mui/x-tree-view babylon-mmd @babylonjs/core @babylonjs/havok @babylonjs/materials wanakana
-```
 
-Library currently is limited to rendering one Instance of MMD on a single page
+Babylon.js and babylon-mmd are installed with the package.
 
-## FullScreenMMDPlayer
+If you use Docusaurus, see [Issues](./issues.mdx) for a config fix.
 
-Example of a full paged MMD Player",
+## Usage {#usage}
+
+Only one `MMD` player can be on a page at a time.
+
+The example below is live. Edit the code to try your own values. It downloads a 3D model,
+motions and music, so it can take a moment to start.
+
+### Full page player {#full-page-player}
+
+A player with a song, a dancing model and a camera motion.
 
 ```tsx
 import MMD from "@arclockproject/mmd-player";
-// FileBrowser is optional and can be removed!
+// FileBrowser is optional and can be removed.
 import FileBrowser from "@arclockproject/common/components/FileBrowser";
 ```
 
@@ -62,7 +72,7 @@ import FileBrowser from "@arclockproject/common/components/FileBrowser";
       `${REMOTE.base}/メランコリ・ナイト.chara.vmd`,
     ],
   })}
-  // FileBrowser is optional and can be removed!
+  // FileBrowser is optional and can be removed.
   getFileBrowser={(data) => <FileBrowser {...data} />}
   basePathMMD=""
   loadAudioMeta={(value) => [
@@ -72,3 +82,7 @@ import FileBrowser from "@arclockproject/common/components/FileBrowser";
   noDebug={false}
 />
 ```
+
+## API {#api}
+
+See the [MMD API reference](/docs/api/mmd-player/component) for every prop, method and type.

@@ -1,5 +1,6 @@
 ---
 title: Audio
+description: "Play sounds with <audio> elements, with fade in and out."
 ---
 
 ## Dependencies {#dependencies}
@@ -51,3 +52,82 @@ function Example() {
   );
 }
 ```
+
+There are two kinds of sounds:
+
+- **One-shot** (default): every `play` starts the file from the beginning, and plays can overlap.
+  Good for clicks and effects.
+- **Single instance** (`singleInstance: true`): one shared player per file. It resumes where it
+  stopped and is the only kind `stopInstance` can stop. Good for music.
+
+The examples below are live. Edit the code to try your own values. `beepUrl(frequency)` is only
+available on this site. It makes a short beep so the examples don't need sound files.
+
+### Sound effects {#sound-effects}
+
+Click quickly: one-shot sounds overlap instead of cutting each other off.
+
+```tsx live
+function SoundEffects() {
+  return (
+    <div>
+      {[262, 330, 392, 523].map((frequency) => (
+        <button key={frequency} onClick={() => AudioManagerGlobal.play(beepUrl(frequency))} style={{ marginRight: 4 }}>
+          {frequency} Hz
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+### Music {#music}
+
+A looping single-instance track with fade in and out, volume and speed.
+
+```tsx live
+function MusicPlayer() {
+  const song = `${REMOTE.base}/PXQZNGjZIFo.m4a`;
+  const [volume, setVolume] = useState(AudioManagerGlobal.maxVolume);
+  const [speed, setSpeed] = useState(1);
+  const [preservesPitch, setPreservesPitch] = useState(true);
+
+  // Stop the music when this example is removed from the page.
+  useEffect(() => () => AudioManagerGlobal.stopInstance(song), []);
+
+  const play = () =>
+    AudioManagerGlobal.play(song, { singleInstance: true, loop: true, gradual: true, speed, preservesPitch });
+
+  return (
+    <div>
+      <button onClick={play}>Play / resume</button>{" "}
+      <button onClick={() => AudioManagerGlobal.stopInstance(song, { gradual: true })}>Fade out</button>{" "}
+      <button onClick={() => AudioManagerGlobal.stopInstance(song)}>Stop now</button>
+      <p>
+        Volume{" "}
+        <input
+          type="range" min={0} max={1} step={0.05} value={volume}
+          onChange={(e) => {
+            setVolume(Number(e.target.value));
+            AudioManagerGlobal.setMaxVolume(Number(e.target.value));
+          }}
+        />{" "}
+        {Math.round(volume * 100)}%
+      </p>
+      <p>
+        Speed{" "}
+        <input type="range" min={0.5} max={2} step={0.25} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} />{" "}
+        {speed}x{" "}
+        <label>
+          <input type="checkbox" checked={preservesPitch} onChange={() => setPreservesPitch(!preservesPitch)} /> keep pitch
+        </label>
+      </p>
+      <small>Speed and pitch apply the next time you press Play.</small>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [Audio API reference](/docs/api/common/library/Audio) for every prop, method and type.

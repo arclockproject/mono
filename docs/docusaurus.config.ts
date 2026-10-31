@@ -51,6 +51,7 @@ const config: Config = {
     [
       apiDocs,
       {
+        scanAndWatch: ["ts","tsx"],
         // Writes the pages of the "API" sidebar section in docs/api.
         packages: [
           {
@@ -99,18 +100,7 @@ const config: Config = {
           onInlineTags: "warn",
           remarkPlugins: [[npm2yarn, { sync: true }]],
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ["rss", "atom"],
-            xslt: true,
-          },
-          // Useful options to enforce blogging best practices
-          onInlineTags: "warn",
-          onInlineAuthors: "warn",
-          onUntruncatedBlogPosts: "warn",
-          remarkPlugins: [[npm2yarn, { sync: true }]],
-        },
+        blog: false,
         pages: {
           remarkPlugins: [[npm2yarn, { sync: true }]],
         },
@@ -145,7 +135,11 @@ const config: Config = {
           position: "left",
           label: "Documentation",
         },
-        { to: "/blog", label: "Blog", position: "left" },
+        {
+          href: "https://github.com/ArcLockProject/mono",
+          label: "GitHub",
+          position: "right",
+        },
       ],
     },
     footer: {

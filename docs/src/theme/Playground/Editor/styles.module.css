@@ -1,0 +1,25 @@
+/* Header matches the theme's Playground/Header style. */
+.summary {
+  cursor: pointer;
+  list-style: none;
+  letter-spacing: 0.08rem;
+  padding: 0.75rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-content);
+  font-size: var(--ifm-code-font-size);
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:hover {
+  background: var(--ifm-color-emphasis-300);
+}
+
+/* Hide the theme's own "Live Editor" header. The summary replaces it. */
+.details > summary + div {
+  display: none;
+}
