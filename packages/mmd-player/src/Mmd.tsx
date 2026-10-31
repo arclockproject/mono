@@ -67,6 +67,17 @@ const updateCanvasResolution = (): void => {
     canvas.height = resolution.height();
   }
 };
+/**
+ * Writes the current scene in `MMDLoadDetails` as `MMDTemplateEntry` JSON into
+ * the player's "MMDLoadDetailsPreview" dialog, so it can be copied into
+ * `presets`. The player calls this itself whenever it requires.
+ *
+ * Only call it while `MMD` is mounted, since it writes to the player's element.
+ *
+ * Generally only used by internal midware components and not end consumers.
+ *
+ * @see {@link https://arclockproject.org/docs/mmd-player/component Guide} | {@link https://arclockproject.org/docs/api/mmd-player/component API}
+ */
 const MMDUpdatePreview = (): void => {
   document.querySelector<HTMLDivElement>("#MMDLoadDetailsPreview")!.innerText =
     JSON.stringify(
@@ -175,41 +186,109 @@ const processMmdDetails = (raw: mmdDetails): mmdDetailsProcessed => {
     ),
   };
 };
+/**
+ * The MMD files the scene builder can choose from, as full paths.
+ *
+ * Files only show up in the scene builder when named by role: `.chara.pmx` or
+ * `.chara.pmd` (characters), `.stage.pmx` or `.stage.pmd` (stages),
+ * `.chara.vmd` (character motion), `.chara.part.vmd` (partial character
+ * motion, E.g. lip-sync) and `.cam.vmd` (camera motion).
+ *
+ * In case you want non-mmd files to also show up, you will need to manually
+ * combine the mmd file types and the remaining file types into the `all` property.
+ *
+ * @example
+ * const files = {
+ *   pmd: [],
+ *   pmx: ["/group/folder/Miku.chara.pmx", "/group/folder2/Room.stage.pmx"],
+ *   vmd: ["/group2/folder/Dance.chara.vmd", "/group2/folder/Dance.cam.vmd"],
+ * }; // <MMD basePathMMD="/mmd" rawMMDDetails={() => files} … />
+ */
 type rawMMDDetails = {
+  /** Model files (`.pmd`). */
   pmd: string[];
+  /** Model files (`.pmx`). */
   pmx: string[];
+  /** Motion files (`.vmd`). */
   vmd: string[];
   /**
-   * If not present will resolve itself as a union of 3 other fields
+   * Every file, for the file browser tab.
+   * Defaults to `pmd`, `pmx` and `vmd` combined if undefined.
+   *
+   * May included non-mmd file types. Those won't be handled with onclick, so manual
+   * on click event will need to be provided.
    */
   all?: string[];
 };
+/** A function that returns a value, or a promise of one. */
 type returnPromiseMaybe<k> = (() => k) | (() => Promise<k>);
 
+/**
+ * A full MMD (MikuMikuDance) player, built on Babylon.js. Its start screen
+ * lets users pick a preset, build a scene from your files, or browse them.
+ * It then loads the characters, motions, camera, stage and music, and plays
+ * them in 3D, with controls for desktop and mobile.
+ *
+ * Browser only. Only one player can be on a page, since it uses fixed element
+ * ids and the shared `MMDLoadDetails` state.
+ *
+ * @see {@link https://arclockproject.org/docs/mmd-player/component Guide} | {@link https://arclockproject.org/docs/api/mmd-player/component API}
+ * @example
+ * <MMD
+ *   basePathMMD="/mmd"
+ *   rawMMDDetails={() => fetch("/mmd/files.json").then((r) => r.json())}
+ *   presets={() => []}
+ *   loadAudioMeta={(id) => [`/music/${id}.mp3`, `/music/${id}.png`]}
+ * />
+ */
 function Mmd(props: {
+  /** Largest width of the player, as a CSS value. */
   maxWidth?: string | number;
+  /** Largest height of the player, as a CSS value. */
   maxHeight?: string | number;
+  /** Returns the files the scene builder can choose from. Called once, on mount. */
   rawMMDDetails: returnPromiseMaybe<rawMMDDetails>;
+  /** Returns the ready-made scenes shown in the presets tab. Called once, on mount. */
   presets: returnPromiseMaybe<MMDTemplateEntry[]>;
+  /** Hide the debug panel and the scene preview button. */
   noDebug?: boolean;
+  /**
+   * Renders the file browser tab, e.g. with `FileBrowser` from
+   * `@arclockproject/common`. Without it, that tab stays display
+   * a harmless text error message.
+   *
+   * Keep in mind that if creating a gallery browser from scratch,
+   * you will need to implement a custom handler for `customAction` to parse
+   * the url and decide how to write into `MMDLoadDetails` fields such as
+   * `MMDLoadDetails.stagePMX` or `MMDLoadDetails.entities`
+   *
+   * Currently, there is no documentation to help in creating a custom FileBrowser.
+   * Manual reading of source code is required.
+   * Please reference to `mmd-player/src/loadFile.tsx`
+   */
   getFileBrowser?: (data: {
+    /** Every file, from `rawMMDDetails`. in their full paths form. */
     fileSystemRaw: string[];
+    /** The `basePathMMD` prop as reference. */
     base: string;
-    /**
-     * @param file Event sent when.
-     * @example
-     * loadMMDFileByURL("https://example.com/folder/file.mp3")
-     * loadMMDFileByURL("/folder/file.mp3") // Will use current domain
-     */
+    /** Loads a clicked file into the scene, picking its role from the file name. */
     customAction?: typeof loadMMDFileByURL;
   }) => ReactNode;
   /**
-   * Base prefix path. Expecting all mmd files to sit at this location. Not expecting a trailing `/`
+   * Base prefix path. Expecting all mmd files to sit at this location.
+   *
+   * Must not have a trailing `/`
    */
   basePathMMD: string;
   /**
+   * Turns the text typed into the debug panel's audio field into file URLs.
+   * Called by its "Audio Fetch" button.
+   *
+   * Used primarly for assisting in manually generating presets if value is an id,
+   * and audio/thumbnails are in a format for `{id}.png` and `{id}.mp3`
+   *
    * @param value Input Field value from UI
-   * @returns [`Full path to audio file`, `Full path to thumbnail file`]
+   * @returns [`/some/path/{value}.mp3`, `/other/path/{value}.png`]
    */
   loadAudioMeta: (value: string) => [string, string];
 }): JSX.Element {

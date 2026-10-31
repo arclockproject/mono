@@ -3,6 +3,7 @@ import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
 import npm2yarn from "@docusaurus/remark-plugin-npm2yarn";
+import apiDocs, { type ApiDocsOptions } from "./plugins/api-docs";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 const config: Config = {
@@ -47,6 +48,48 @@ const config: Config = {
         }),
       };
     },
+    [
+      apiDocs,
+      {
+        scanAndWatch: ["ts","tsx"],
+        // Writes the pages of the "API" sidebar section in docs/api.
+        packages: [
+          {
+            root: "../packages/common",
+            name: "@arclockproject/common",
+            modules: [
+              {
+                source: "src/library/*/index.ts",
+                outFile: "docs/api/common/library/*.mdx",
+                title: "*",
+                importPath: "library/*",
+                guide: "docs/common/library/*/index.mdx",
+              },
+              {
+                source: "src/components/*/index.tsx",
+                outFile: "docs/api/common/components/*.mdx",
+                title: "*",
+                importPath: "components/*",
+                guide: "docs/common/components/*/index.mdx",
+              },
+            ],
+          },
+          {
+            root: "../packages/mmd-player",
+            name: "@arclockproject/mmd-player",
+            modules: [
+              {
+                source: "src/index.tsx",
+                outFile: "docs/api/mmd-player/component.mdx",
+                title: "Component",
+                importPath: "",
+                guide: "docs/mmd-player/component.mdx",
+              },
+            ],
+          },
+        ],
+      } satisfies ApiDocsOptions,
+    ],
   ],
   presets: [
     [
@@ -57,18 +100,7 @@ const config: Config = {
           onInlineTags: "warn",
           remarkPlugins: [[npm2yarn, { sync: true }]],
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ["rss", "atom"],
-            xslt: true,
-          },
-          // Useful options to enforce blogging best practices
-          onInlineTags: "warn",
-          onInlineAuthors: "warn",
-          onUntruncatedBlogPosts: "warn",
-          remarkPlugins: [[npm2yarn, { sync: true }]],
-        },
+        blog: false,
         pages: {
           remarkPlugins: [[npm2yarn, { sync: true }]],
         },
@@ -103,7 +135,11 @@ const config: Config = {
           position: "left",
           label: "Documentation",
         },
-        { to: "/blog", label: "Blog", position: "left" },
+        {
+          href: "https://github.com/ArcLockProject/mono",
+          label: "GitHub",
+          position: "right",
+        },
       ],
     },
     footer: {

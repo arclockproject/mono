@@ -1,16 +1,46 @@
 import LibArray from "@arclockproject/common/library/Array";
 
+/**
+ * A 2D point or offset on the grid. `x` is the column and `y` is the row.
+ */
 class Vector2D {
+  /**
+   * Creates a vector. `getNode` and the other `Map2D` methods also take a plain `{ x, y }`.
+   *
+   * @param x Column, counted from 0 on the left.
+   * @param y Row, counted from 0 at the top.
+   */
   constructor(
     public x: number,
     public y: number,
   ) {}
+  /**
+   * Measures the straight-line distance, not the number of steps on the grid.
+   *
+   * @param other The point to measure to.
+   * @returns Straight-line distance to `other`.
+   * @example
+   * new Vector2D(0, 0).distance(new Vector2D(3, 4)); // 5
+   */
   distance(other: Vector2D): number {
     return Math.sqrt((this.x - other.x) ** 2 + (this.y - other.y) ** 2);
   }
+  /**
+   * Copies the vector, so it can be changed without changing the original.
+   *
+   * @returns A new vector with the same `x` and `y`.
+   */
   copy(): Vector2D {
     return new Vector2D(this.x, this.y);
   }
+  /**
+   * Adds `vector` to this vector in place. Use `copy()` first to keep the original.
+   *
+   * @param vector The offset to add. It is not changed.
+   * @returns This vector, for chaining.
+   * @example
+   * new Vector2D(1, 1).add(new Vector2D(2, 0)); // Vector(x=3,y=1)
+   */
   add(vector: Vector2D): this {
     this.x += vector.x;
     this.y += vector.y;
@@ -20,19 +50,46 @@ class Vector2D {
     return `Vector(x=${this.x},y=${this.y})`;
   }
 }
+/**
+ * One cell of a `Map2D`. Extend it to store your own data per cell, and pass
+ * the subclass as `Map2D`'s type parameter.
+ */
 class Node2D {
+  /** The node before this one on the last calculated path. Set by `Map2D.calculatePath`. */
   public cameFrom: this | null = null;
+  /** Path cost from the start. Set by `Map2D.calculatePath`. */
   public g: number = Infinity;
+  /** Search score. Set by `Map2D.calculatePath`. */
   public f: number = Infinity;
+  /** The map this node belongs to. Set by the `Map2D` constructor. */
   public mapRef: Map2D<this> | null = null;
+  /**
+   * Creates a node. Usually made in the `generator` of `Map2D.generateNodeMatrix`,
+   * which passes the right `pos`.
+   *
+   * @param pos Position on the map. Must match the node's place in the matrix.
+   * @param cost How expensive it is to step onto this node. Paths prefer lower costs.
+   * @param traversable `false` makes this node a wall.
+   */
   constructor(
     public pos: Vector2D,
     public cost: number,
     public traversable: boolean = true,
   ) {}
+  /**
+   * Measures the straight-line distance between the two nodes' positions.
+   *
+   * @param other The node to measure to.
+   * @returns Straight-line distance to `other`.
+   */
   distance(other: this): number {
     return this.pos.distance(other.pos);
   }
+  /**
+   * Lists the neighbors a path can step onto. Used by `Map2D.calculatePath`.
+   *
+   * @returns The nodes up, down, left and right of this one that exist and are traversable.
+   */
   getTraversableNeighbors(): this[] {
     return [
       this.mapRef?.getNode(this.pos.copy().add(new Vector2D(1, 0))),
@@ -41,6 +98,11 @@ class Node2D {
       this.mapRef?.getNode(this.pos.copy().add(new Vector2D(0, 1))),
     ].filter((e): e is this => !!e && e.traversable);
   }
+  /**
+   * Lists every neighbor, including walls. Nodes outside the map are left out.
+   *
+   * @returns The nodes up, down, left and right of this one that exist, including walls.
+   */
   getNeighbors(): this[] {
     return [
       this.mapRef?.getNode(this.pos.copy().add(new Vector2D(1, 0))),
@@ -49,6 +111,13 @@ class Node2D {
       this.mapRef?.getNode(this.pos.copy().add(new Vector2D(0, 1))),
     ].filter((e): e is this => !!e);
   }
+  /**
+   * Follows `cameFrom` back from this node until it reaches `end`. Used by
+   * `Map2D.calculatePath`. Logs an error and returns what it has if the chain breaks.
+   *
+   * @param end The node to stop at, usually the start of the path.
+   * @returns Nodes from this node to `end`, both included.
+   */
   traversePathTill(end: this): this[] {
     const path: this[] = [];
     let current: this = this;
@@ -67,12 +136,47 @@ class Node2D {
     return `Node2D(pos=${this.pos.toString()},cost=${this.cost},traversable=${this.traversable})`;
   }
 }
+/**
+ * A grid of `Node2D`s that can find paths between them. Movement is up, down,
+ * left and right only.
+ *
+ * @see {@link https://arclockproject.org/docs/common/library/AStar Guide} | {@link https://arclockproject.org/docs/api/common/library/AStar API}
+ * @example
+ * const map = new Map2D(
+ *   Map2D.generateNodeMatrix((pos) => new Node2D(pos, 1), 10),
+ * );
+ * map.getNode({ x: 5, y: 5 })!.traversable = false;
+ * const path = map.calculatePath(
+ *   map.getNode({ x: 0, y: 0 }),
+ *   map.getNode({ x: 9, y: 9 })
+ * );
+ */
 class Map2D<CustomNode2D extends Node2D = Node2D> {
+  /**
+   * Looks up the node at a position.
+   *
+   * @param pos A `Vector2D` or a plain `{ x, y }`.
+   * @returns The node at `pos`, or `null` if it is outside the map.
+   * @example
+   * map.getNode({ x: 0, y: 0 }); // top-left node
+   * map.getNode({ x: -1, y: 0 }); // null
+   */
   getNode(pos: Vector2D): CustomNode2D | null;
   getNode(pos: { x: number; y: number }): CustomNode2D | null;
   getNode(pos: Vector2D | { x: number; y: number }): CustomNode2D | null {
     return this.nodes[pos.y]?.[pos.x] ?? null;
   }
+  /**
+   * Returns the rectangle of nodes between two corners, as rows. The rectangle
+   * starts at the smaller `x` and `y` and stops before the larger ones, and is
+   * clipped to the map.
+   *
+   * @param posA One corner.
+   * @param posB The opposite corner.
+   * @returns Rows of nodes, top to bottom.
+   * @example
+   * map.getNodeArea({ x: 0, y: 0 }, { x: 2, y: 2 }); // 2×2 nodes: (0,0) to (1,1)
+   */
   getNodeArea(posA: Vector2D, posB: Vector2D): CustomNode2D[][];
   getNodeArea(
     posA: { x: number; y: number },
@@ -89,6 +193,12 @@ class Map2D<CustomNode2D extends Node2D = Node2D> {
 
     return this.nodes.slice(top, bottom).map((row) => row.slice(left, right));
   }
+  /**
+   * Same as `getNodeArea`, but as one flat list, row by row.
+   *
+   * @param posA One corner.
+   * @param posB The opposite corner.
+   */
   getNodeAreaFlat(posA: Vector2D, posB: Vector2D): CustomNode2D[];
   getNodeAreaFlat(
     posA: { x: number; y: number },
@@ -103,25 +213,30 @@ class Map2D<CustomNode2D extends Node2D = Node2D> {
       return prev;
     }, []);
   }
+  /**
+   * Calls `forEach` for every node, row by row.
+   *
+   * @param forEach Called with each node. Changing the node in place is fine.
+   */
   forEachNode(forEach: (node: CustomNode2D) => void): void {
     for (const row of this.nodes) {
       row.forEach(forEach);
     }
   }
+  /**
+   * Builds a node matrix to pass to the `Map2D` constructor, with each node at
+   * the right position.
+   *
+   * @param generator Called once per cell with its position. Returns the node for that cell.
+   * @param width Number of columns.
+   * @param height Number of rows. Defaults to `width`.
+   * @returns Rows of nodes, `[y][x]`.
+   * @example
+   * Map2D.generateNodeMatrix((pos) => new Node2D(pos, 1), 20, 10); // 20 wide, 10 tall
+   */
   public static generateNodeMatrix<CustomNode2D extends Node2D = Node2D>(
-    /**
-     * Generator run per required Node2D
-     */
-    generator: (
-      /**
-       * Vector with the current location on the matrix
-       */
-      vector: Vector2D,
-    ) => CustomNode2D,
+    generator: (vector: Vector2D) => CustomNode2D,
     width: number,
-    /**
-     * If not provided, will use width instead.
-     */
     height?: number,
   ): CustomNode2D[][] {
     return new Array(height ?? width).fill(0).map((_valueY, y) =>
@@ -130,8 +245,16 @@ class Map2D<CustomNode2D extends Node2D = Node2D> {
         .map((_valueX, x) => generator(new Vector2D(x, y))),
     );
   }
+  /** Number of columns. */
   public width = 0;
+  /** Number of rows. */
   public height = 0;
+  /**
+   * Creates a map from a node matrix, usually made with `Map2D.generateNodeMatrix`.
+   *
+   * @param nodes Rows of nodes, `[y][x]`. All rows should be the same length.
+   * Each node's `mapRef` is set to this map.
+   */
   constructor(public nodes: CustomNode2D[][]) {
     this.height = nodes.length;
     for (const row of nodes) {
@@ -142,6 +265,13 @@ class Map2D<CustomNode2D extends Node2D = Node2D> {
     }
   }
   /**
+   * Finds a path from `start` to `end` that avoids walls and prefers low-cost
+   * nodes. Overwrites the `cameFrom`, `g` and `f` of the nodes it visits.
+   *
+   * @param start Node to start from. Usually from `getNode`.
+   * @param end Node to reach.
+   * @returns The path **from `end` back to `start`**, both included. `null` if
+   * either node is `null` or no path exists.
    * @see https://en.wikipedia.org/wiki/A*_search_algorithm
    */
   calculatePath(

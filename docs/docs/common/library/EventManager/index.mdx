@@ -1,3 +1,112 @@
 ---
 title: EventManager
+description: "A typed event emitter."
 ---
+
+## Dependencies {#dependencies}
+
+This library does not require any dependencies.
+
+## Usage {#usage}
+
+```tsx
+import EventManager from "@arclockproject/common/library/EventManager";
+
+const events = new EventManager<{
+  pay: (client: string, details: { amount: number }) => void;
+}>();
+
+const onPay = (client: string, details: { amount: number }) => {
+  console.log(`${client} paid ${details.amount}`);
+};
+
+events.addListener("pay", onPay);
+events.dispatch("pay", "Alex", { amount: 100 }); // "Alex paid 100"
+events.removeListener("pay", onPay);
+```
+
+`removeListener` only works with the **same function** you passed to `addListener`, so keep a
+reference to it. `addListener` returns the passed function to make that easier.
+
+The examples below are live. Edit the code to try your own values.
+
+### Sending and listening {#sending-and-listening}
+
+One `EventManager` shared by a sender and a few listeners. Each listener subscribes when it
+appears and unsubscribes when it is removed, so hidden listeners stop getting messages.
+
+```tsx live noInline
+function Chat() {
+  const events = useMemo(() => new EventManager(), []);
+  const [text, setText] = useState("Hello!");
+  const [shown, setShown] = useState({ Alex: true, Sam: true, Kim: false });
+
+  return (
+    <div>
+      <input value={text} onChange={(e) => setText(e.target.value)} />{" "}
+      <button onClick={() => events.dispatch("message", "You", text)}>Send</button>
+      <p>
+        {Object.keys(shown).map((name) => (
+          <label key={name} style={{ marginRight: 12 }}>
+            <input
+              type="checkbox"
+              checked={shown[name]}
+              onChange={() => setShown({ ...shown, [name]: !shown[name] })}
+            />{" "}
+            {name}
+          </label>
+        ))}
+      </p>
+      <div style={{ display: "flex", gap: 8 }}>
+        {Object.keys(shown).map((name) => shown[name] && <Inbox key={name} name={name} events={events} />)}
+      </div>
+    </div>
+  );
+}
+
+function Inbox({ name, events }) {
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    const onMessage = events.addListener("message", (from, text) => {
+      setMessages((list) => [...list, `${from}: ${text}`]);
+    });
+    return () => events.removeListener("message", onMessage);
+  }, [events]);
+
+  return (
+    <div style={{ border: "1px solid var(--ifm-color-emphasis-300)", padding: 8, minWidth: 120 }}>
+      <strong>{name}</strong>
+      {messages.map((message, i) => (
+        <div key={i}>{message}</div>
+      ))}
+    </div>
+  );
+}
+
+render(<Chat />);
+```
+
+### Adding a listener in one line {#adding-a-listener-in-one-line}
+
+`addListener` returns the function you pass in, and infers its parameter types from the event map.
+So you can write the listener inline and still keep a reference for `removeListener`.
+This is the Usage example made shorter:
+
+```tsx
+import EventManager from "@arclockproject/common/library/EventManager";
+
+const events = new EventManager<{
+  pay: (client: string, details: { amount: number }) => void;
+}>();
+
+const onPay = events.addListener("pay", (client, details) => { // Types are infered.
+  console.log(`${client} paid ${details.amount}`);
+});
+events.dispatch("pay", "Alex", { amount: 100 }); // "Alex paid 100"
+events.removeListener("pay", onPay); // Removes the function made in events.addListener
+```
+
+## API {#api}
+
+See the [EventManager API reference](/docs/api/common/library/EventManager) for every prop, method and type.

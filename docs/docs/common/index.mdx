@@ -4,13 +4,40 @@ sidebar_label: "@arclockproject/common"
 sidebar_position: 4
 ---
 
-import { version } from "./../../../packages/common/package.json";
+import pkg from "./../../../packages/common/package.json";
+import DocCardList from "@theme/DocCardList";
 
-Latest release: <code>v{version}</code>
+Latest release: <code>v{pkg.version}</code>
 
-All newly added elements will highly likely appear under
-`@arclockproject/common` if they do not have a distinct purpose.
+Reusable React components and small libraries. Anything without a package of
+its own is likely to be added here.
+
+A component or library may later move into a package of its own.
+Because that changes how you import it, it only happens in a major release.
+Release notes will define the change and mitigation steps.
+
+## Installation {#installation}
 
 ```bash npm2yarn
 npm install @arclockproject/common
 ```
+
+Each guide page lists anything else it needs.
+
+## Usage {#usage}
+
+Import each library or component from its own path, so you only bundle what you use:
+
+```tsx
+// Example Imports
+import Time from "@arclockproject/common/library/Time"; // View all in Library section 
+import Image from "@arclockproject/common/components/Image"; // View all in Components section 
+```
+
+## Contents {#contents}
+
+<DocCardList />
+
+## API {#api}
+
+See the [@arclockproject/common API reference](/docs/api/common) for every prop, method and type.

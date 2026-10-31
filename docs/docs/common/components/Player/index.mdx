@@ -1,16 +1,39 @@
 ---
 title: Player
+description: "Video player, mini player and audio player that share playback state."
 ---
 
-Dependencies for `@arclockproject/common/components/Player` are
+## Dependencies {#dependencies}
 
+```bash npm2yarn
+npm install @mui/material @emotion/react @emotion/styled @mui/icons-material lodash
 ```
-@mui/material @emotion/react @emotion/styled @mui/icons-material lodash
+
+## Usage {#usage}
+
+```tsx
+import {
+  AudioHolder,
+  MiniPlayer,
+  PlayerContextProvider,
+  usePlayer,
+  VideoPlayer,
+} from "@arclockproject/common/components/Player";
 ```
 
-Universal Video and Audio Player.
+A video and audio player made of parts that share one state:
 
-By passing `videoData` parameter you can instantly load the entry on component mount.
+- `PlayerContextProvider` holds the state. Put it high in the tree so playback survives page changes.
+- `VideoPlayer` shows the video and controls.
+- `AudioHolder` plays the audio. Keep it mounted so audio keeps playing when `VideoPlayer` is removed.
+- `MiniPlayer` is a small player bar fixed to the bottom-right of the screen.
+- `usePlayer` gives your own components access to the state.
+
+The examples below are live. Edit the code to try your own values.
+
+### Single video {#single-video}
+
+Pass `videoData` to load an entry as soon as the player mounts.
 
 ```tsx live showLineNumbers
 <PlayerContextProvider>
@@ -42,7 +65,10 @@ By passing `videoData` parameter you can instantly load the entry on component m
 </PlayerContextProvider>
 ```
 
-As long as `<AudioHolder />` stays loaded, the audio will keep on playing and when player is loaded back, it will attempt to sync back
+### Mini player and playlist {#mini-player-and-playlist}
+
+Load a video, then press **VideoPlayer Unload**. As long as `<AudioHolder />` stays mounted,
+the audio keeps playing in the mini player. When the player is loaded again, it syncs back.
 
 ```tsx live showLineNumbers
 function main() {
@@ -133,9 +159,9 @@ function main() {
 }
 ```
 
-## Sticky Mobile Player
+### Sticky mobile player {#sticky-mobile-player}
 
-As long as `<AudioHolder />` stays loaded, the audio will keep on playing and when player is loaded back, it will attempt to sync back
+With `sticky: true`, the video stays at the top on mobile while the page scrolls below it.
 
 ```tsx live showLineNumbers
 <PlayerContextProvider
@@ -145,8 +171,8 @@ As long as `<AudioHolder />` stays loaded, the audio will keep on playing and wh
     videoBackgroundBloom: true,
     allowMiniPlayer: true,
     sticky: true, // changed
-    stickySpacing: 0,
-    stickyTriggerDistance: 0,
+    stickySpacing: 0, // Gap above the sticky player in px (e.g. for a navbar). Hidden while scrolling down.
+    stickyTriggerDistance: 0, // Pixels to scroll before the gap hides or comes back. 0 is immidiate
   }}
 >
   <div style={{ height: "500px", overflowY: "scroll" }}>
@@ -185,3 +211,7 @@ As long as `<AudioHolder />` stays loaded, the audio will keep on playing and wh
   <AudioHolder />
 </PlayerContextProvider>
 ```
+
+## API {#api}
+
+See the [Player API reference](/docs/api/common/components/Player) for every prop, method and type.

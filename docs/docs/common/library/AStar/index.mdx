@@ -1,12 +1,13 @@
 ---
 title: AStar
+description: "A 2D grid with A* pathfinding."
 ---
 
-# Dependencies
+## Dependencies {#dependencies}
 
 This library does not require any dependencies.
 
-# Usage
+## Usage {#usage}
 
 ```tsx
 import { Map2D, Node2D, Vector2D } from "@arclockproject/common/library/AStar";
@@ -28,7 +29,7 @@ const worldMap = new Map2D(
 
 const foundPath = worldMap.calculatePath(
   worldMap.getNode(new Vector2D(1, 1)), // Point 1
-  worldMap.getNode(new Vector2D(8, 8)), // Point 2
+  worldMap.getNode(new Vector2D(4, 4)), // Point 2 
 );
 
 if (foundPath) {
@@ -37,3 +38,76 @@ if (foundPath) {
   console.log("Was unable to find path between 2 points.");
 }
 ```
+
+`calculatePath` returns the path from the **end back to the start**, including both, or `null`
+if there is no path. Use `.reverse()` to walk it from the start. Movement is up, down, left and
+right only.
+
+The example below is live. Edit the code to try your own values.
+
+### Pathfinding playground {#pathfinding-playground}
+
+Pick a tool, then click cells. Mud costs more to walk through, so the path tries to go around it.
+
+```tsx live
+function PathfindingPlayground() {
+  // Build the map once. Clicks change its nodes in place, then call redraw().
+  const map = useMemo(() => {
+    const map = new Map2D(Map2D.generateNodeMatrix((pos) => new Node2D(pos, 1), 20, 12));
+    map.getNodeAreaFlat({ x: 6, y: 2 }, { x: 7, y: 10 }).forEach((node) => (node.traversable = false));
+    map.getNodeAreaFlat({ x: 13, y: 0 }, { x: 14, y: 8 }).forEach((node) => (node.traversable = false));
+    map.getNodeAreaFlat({ x: 8, y: 6 }, { x: 12, y: 12 }).forEach((node) => (node.cost = 5));
+    return map;
+  }, []);
+  const [, redraw] = useReducer((v) => v + 1, 0);
+  const [start, setStart] = useState({ x: 2, y: 5 });
+  const [end, setEnd] = useState({ x: 17, y: 6 });
+  const [tool, setTool] = useState("wall");
+  const path = map.calculatePath(map.getNode(start), map.getNode(end));
+
+  const click = (node) => {
+    if (tool === "start") return setStart(node.pos);
+    if (tool === "end") return setEnd(node.pos);
+    if (tool === "wall") node.traversable = !node.traversable;
+    if (tool === "mud") node.cost = node.cost === 5 ? 1 : 5;
+    redraw();
+  };
+
+  const clear = () => {
+    map.forEachNode((node) => Object.assign(node, { traversable: true, cost: 1 }));
+    redraw();
+  };
+
+  const color = (node) => {
+    const { x, y } = node.pos;
+    if (x === start.x && y === start.y) return "#2f855a";
+    if (x === end.x && y === end.y) return "#c53030";
+    if (!node.traversable) return "#2d3748";
+    if (path?.includes(node)) return "var(--ifm-color-primary)";
+    if (node.cost === 5) return "#975a16";
+    return "#e2e8f0";
+  };
+
+  return (
+    <div>
+      {["wall", "mud", "start", "end"].map((name) => (
+        <button key={name} onClick={() => setTool(name)} style={{ fontWeight: tool === name ? "bold" : undefined, marginRight: 4 }}>
+          {name}
+        </button>
+      ))}
+      <button onClick={clear}>Clear</button>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${map.width}, 24px)`, gap: 1, margin: "8px 0", userSelect: "none" }}>
+        {map.nodes.flat().map((node) => (
+          <div key={`${node.pos}`} onClick={() => click(node)} style={{ width: 24, height: 24, background: color(node), cursor: "pointer" }} />
+        ))}
+      </div>
+      <p>{path ? `Path found: ${path.length} cells.` : "No path between start and end."}</p>
+      <h6>Cost for Mud = 5x</h6>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [AStar API reference](/docs/api/common/library/AStar) for every prop, method and type.

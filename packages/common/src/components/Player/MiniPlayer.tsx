@@ -26,6 +26,15 @@ import { usePlayer } from "./usePlayer";
 
 //#region MiniPlayer.tsx
 
+/**
+ * Small player bar fixed to the bottom-right of the screen, with playback
+ * controls, a progress bar and a "Resume" button that calls `navigate`.
+ * Clicking it opens a larger panel, which also shows `children` at the bottom.
+ * Shown while `usePlayer().internal.miniPlayer` is `true`. Must be inside
+ * `PlayerContextProvider`.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/Player Guide} | {@link https://arclockproject.org/docs/api/common/components/Player API}
+ */
 function MiniPlayer({ children }: PropsWithChildren): JSX.Element {
   const context = usePlayer();
   const [isOpen, setOpen] = useState(false);

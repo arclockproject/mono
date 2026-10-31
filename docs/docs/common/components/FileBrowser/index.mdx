@@ -1,36 +1,71 @@
 ---
 title: FileBrowser
+description: "Browse a list of file paths as folders and files."
 ---
 
-Dependencies for `@arclockproject/common/components/FileBrowser` are
+## Dependencies {#dependencies}
 
+```bash npm2yarn
+npm install @mui/material @emotion/react @emotion/styled
 ```
-@mui/material @emotion/react @emotion/styled @mui/x-tree-view babylon-mmd @babylonjs/core @babylonjs/havok @babylonjs/materials wanakana
-```
 
-Dependencies will be reduced in the future as currently it is partially linked to the MMD component and thus forcing babylon dependencies.
-
-FileBrowser Example with base path of /home/user and 5 files.
-
-CustomAction is set to log the path when you click.
-Checkout the developer console when clicking on a file (not folder)
+## Usage {#usage}
 
 ```tsx
 import FileBrowser from "@arclockproject/common/components/FileBrowser";
 ```
 
+The examples below are live. Edit the code to try your own values.
+
+### Browsing files {#browsing-files}
+
+A base path of `/home/user` and 5 files. `customAction` runs when you click a file (not a
+folder). Here it shows the path below the browser.
+
+Pass the same array on every render (e.g. with `useMemo`). A new array resets the browser to
+the top folder.
+
 ```tsx live
-<FileBrowser
-  base="/home/user"
-  customAction={(file: string) => {
-    console.log("You clicked: " + file);
-  }}
-  fileSystemRaw={[
-    "/index.html",
-    "/assets/image.png",
-    "/assets/videos/intro.mp4",
-    "/assets/icon.svg",
-    "/LICENSE",
-  ]}
-/>
+function FileBrowserExample() {
+  const [clicked, setClicked] = useState(null);
+  const files = useMemo(
+    () => ["/index.html", "/assets/image.png", "/assets/videos/intro.mp4", "/assets/icon.svg", "/LICENSE"],
+    [],
+  );
+
+  return (
+    <div>
+      <FileBrowser
+        base="/home/user"
+        customAction={(file) => setClicked(file)}
+        fileSystemRaw={files}
+      />
+      <p>You clicked: <code>{clicked ?? "nothing yet"}</code></p>
+    </div>
+  );
+}
 ```
+
+### Your own files {#your-own-files}
+
+One path per line. Folders are made from the parts of each path.
+
+```tsx live
+function FileBrowserPlayground() {
+  const [paths, setPaths] = useState(
+    ["/src/index.ts", "/src/components/Button.tsx", "/src/components/Card.tsx", "/README.md"].join("\n")
+  );
+  const files = useMemo(() => paths.split("\n").filter(Boolean), [paths]);
+
+  return (
+    <div>
+      <textarea value={paths} onChange={(e) => setPaths(e.target.value)} rows={5} style={{ width: "100%" }} />
+      <FileBrowser fileSystemRaw={files} />
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [FileBrowser API reference](/docs/api/common/components/FileBrowser) for every prop, method and type.

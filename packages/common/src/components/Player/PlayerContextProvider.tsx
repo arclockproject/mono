@@ -20,14 +20,40 @@ let performedDeSyncs = 0;
 setInterval(() => {
   performedDeSyncs = 0;
 }, 2000);
+/**
+ * Holds the player state shared by `VideoPlayer`, `MiniPlayer` and
+ * `AudioHolder`. Put it high in the tree, e.g. around your router, so playback
+ * survives page changes. Only its `children` can use the player.
+ *
+ * `metaType` is the type of each entry's `meta`, and `listMetaType` the type of
+ * `playlistMeta`.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/Player Guide} | {@link https://arclockproject.org/docs/api/common/components/Player API}
+ * @example
+ * <PlayerContextProvider navigate={(video) => router.push(`/watch/${video.id}`)}>
+ *   <App />
+ *   <MiniPlayer />
+ *   <AudioHolder />
+ * </PlayerContextProvider>
+ */
 const PlayerContextProvider = <metaType, listMetaType>(
   props: PropsWithChildren<{
+    /**
+     * Called when the player moves to another entry without opening its page,
+     * e.g. the next playlist entry while the mini player is shown. Use it to
+     * record watch history.
+     */
     touchHistory?: (video: videoData<metaType>) => void;
+    /**
+     * Called when the player wants to open an entry's page, e.g. the mini
+     * player's "Resume" button or the next playlist entry. Use it to route.
+     */
     navigate?: (link: videoData<metaType>) => void;
     /**
-     * If passed, context will use this as the settings.
+     * If passed, the player uses these settings instead of its own.
      *
-     * Setter will no longer be effective. This value must be updated for changes to take effect.
+     * `usePlayer().internal.settings.set` then has no effect, so update this
+     * prop to change them.
      */
     settings?: settings;
   }>,

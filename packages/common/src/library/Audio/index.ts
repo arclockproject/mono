@@ -1,3 +1,17 @@
+/**
+ * Plays sound files using `<audio>` elements, with fade in and out.
+ *
+ * There are two kinds of sounds:
+ * - **One-shot** (default): each `play` starts the file from the beginning, and
+ *   overlapping plays of the same file are allowed. Good for clicks and effects.
+ * - **Single instance** (`singleInstance: true`): one shared element per file,
+ *   which resumes where it stopped and can be stopped with `stopInstance`.
+ *   Good for music and ambience.
+ *
+ * Most apps use the shared `AudioManagerGlobal` instead of creating their own.
+ *
+ * @see {@link https://arclockproject.org/docs/common/library/Audio Guide} | {@link https://arclockproject.org/docs/api/common/library/Audio API}
+ */
 class AudioManager {
   //   private audioContext: AudioContext;
   private cacheOnceShot: {
@@ -9,11 +23,20 @@ class AudioManager {
       effects: ReturnType<typeof setInterval>[];
     };
   } = {};
+  /**
+   * Volume sounds play at, from 0 to 1. Change it with `setMaxVolume`.
+   */
   maxVolume = 1;
   //   constructor() {
   //     this.audioContext = new (window.AudioContext ||
   //       (window as any).webkitAudioContext)();
   //   }
+  /**
+   * Sets the volume for all sounds. Single-instance sounds that are playing
+   * change right away, and any fade on them stops.
+   *
+   * @param volume From 0 (silent) to 1 (full).
+   */
   public setMaxVolume(volume: number): void {
     this.maxVolume = volume;
     for (const key in this.cacheInstance) {
@@ -63,13 +86,27 @@ class AudioManager {
     }
     return this.cacheInstance[path];
   }
+  /**
+   * Plays the file at `path`.
+   *
+   * @param path URL of the audio file.
+   * @param options How to play it. All are optional.
+   * @example
+   * AudioManagerGlobal.play("/sounds/click.mp3");
+   * AudioManagerGlobal.play("/music/theme.mp3", { singleInstance: true, loop: true, gradual: true });
+   */
   public play(
     path: string | string,
     options?: {
+      /** Use one shared element for this file, which resumes instead of restarting. Needed for `stopInstance`. */
       singleInstance?: boolean;
+      /** Repeat when it reaches the end. */
       loop?: boolean;
+      /** Fade in instead of starting at full volume. */
       gradual?: boolean;
+      /** Playback rate, where `1` is normal speed. */
       speed?: number;
+      /** Keep the pitch the same when `speed` is not `1`. */
       preservesPitch?: boolean;
     },
   ): void {
@@ -107,12 +144,35 @@ class AudioManager {
     }, 100);
     if (effects !== null) effects.push(interval);
   }
-  public stopAllInstances(data?: { gradual?: boolean }): void {
+  /**
+   * Stops every single-instance sound. One-shot sounds keep playing.
+   *
+   * @param data Optional settings.
+   */
+  public stopAllInstances(data?: {
+    /** Fade out instead of stopping at once. */
+    gradual?: boolean;
+  }): void {
     for (const key in this.cacheInstance) {
       this.stopInstance(key as string, { gradual: data?.gradual });
     }
   }
-  public stopInstance(path: string, data?: { gradual?: boolean }): void {
+  /**
+   * Pauses the single-instance sound for `path`. Playing it again resumes from
+   * the same position. Has no effect on one-shot sounds.
+   *
+   * @param path The same URL that was passed to `play`.
+   * @param data Optional settings.
+   * @example
+   * AudioManagerGlobal.stopInstance("/music/theme.mp3", { gradual: true });
+   */
+  public stopInstance(
+    path: string,
+    data?: {
+      /** Fade out instead of stopping at once. */
+      gradual?: boolean;
+    },
+  ): void {
     const { audio, effects } = this.getCacheInstance(path);
     effects.forEach((effect) => {
       clearInterval(effect);
@@ -136,5 +196,14 @@ class AudioManager {
     effects.push(interval);
   }
 }
+/**
+ * Shared `AudioManager` for the whole app, so volume and single-instance
+ * sounds are managed in one place.
+ *
+ * @example
+ * import { AudioManagerGlobal } from "@arclockproject/common/library/Audio";
+ *
+ * AudioManagerGlobal.play("/sounds/click.mp3");
+ */
 const AudioManagerGlobal: AudioManager = new AudioManager();
 export { AudioManager, AudioManagerGlobal };

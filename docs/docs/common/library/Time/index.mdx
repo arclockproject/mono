@@ -1,31 +1,130 @@
 ---
-title: Time
+title: "Time"
+description: "Format durations and elapsed time as text."
 ---
 
-# Dependencies
+## Dependencies {#dependencies}
 
 This library does not require any dependencies.
 
-# Usage
+## Usage {#usage}
 
 ```tsx
 import Time from "@arclockproject/common/library/Time";
-
-Time.timeSince(3601); // "1 hour ago"
-Time.timeSince(130); // "2 minutes ago"
-Time.timeSince(61); // "1 minute ago"
-Time.timeSince(60); // "60 seconds ago"
-Time.timeSince(40); // "40 seconds ago"
 ```
 
-```tsx
-import Time from "@arclockproject/common/library/Time";
+The examples below are live. Edit the code to try your own values.
 
-Time.parseTimeDuration(60); // "01:00"
-Time.parseTimeDuration(120); // "02:00"
-Time.parseTimeDuration(6); // "00:06"
-Time.parseTimeDuration(3605); // "01:00:05"
+### parseTimeDuration {#parse-time-duration}
 
-// Specific fixed max
-Time.parseTimeDuration(356000); // "--:--"
+Type a number of seconds to see how it is formatted.
+
+```tsx live
+function DurationPlayground() {
+  const [input, setInput] = useState("3605");
+
+  return (
+    <div>
+      <input value={input} onChange={(e) => setInput(e.target.value)} />
+      <p>
+        <code>Time.parseTimeDuration({JSON.stringify(input)})</code> →{" "}
+        <code>{JSON.stringify(Time.parseTimeDuration(input))}</code>
+      </p>
+    </div>
+  );
+}
 ```
+
+Some values to compare side by side:
+
+```tsx live
+function DurationTable() {
+  const values = [0, 6, 59.9, 60, 120, 3599, 3600, 3605, 86400, 356000, "90", "foo"];
+
+  return (
+    <table>
+      <tbody>
+        {values.map((value) => (
+          <tr key={String(value)}>
+            <td><code>{JSON.stringify(value)}</code></td>
+            <td><code>{JSON.stringify(Time.parseTimeDuration(value))}</code></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+A stopwatch using `parseTimeDuration`:
+
+```tsx live
+function Stopwatch() {
+  const [seconds, setSeconds] = useState(0);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  return (
+    <div>
+      <p style={{ fontSize: "2rem" }}>{Time.parseTimeDuration(seconds)}</p>
+      <button onClick={() => setRunning(!running)}>{running ? "Pause" : "Start"}</button>{" "}
+      <button onClick={() => setSeconds(3595)}>Jump to 59:55</button>{" "}
+      <button onClick={() => { setRunning(false); setSeconds(0); }}>Reset</button>
+    </div>
+  );
+}
+```
+
+### timeSince {#time-since}
+
+`timeSince` takes a Unix timestamp in **seconds**. `Date.now()` gives milliseconds,
+so divide by 1000 first.
+
+Type how many seconds ago something happened:
+
+```tsx live
+function TimeSincePlayground() {
+  const [secondsAgo, setSecondsAgo] = useState(3601);
+  const now = Math.floor(Date.now() / 1000);
+
+  return (
+    <div>
+      <input
+        type="number"
+        value={secondsAgo}
+        onChange={(e) => setSecondsAgo(Number(e.target.value))}
+      />{" "}
+      seconds ago
+      <p>
+        <code>Time.timeSince(now - {secondsAgo})</code> →{" "}
+        <code>{JSON.stringify(Time.timeSince(now - secondsAgo))}</code>
+      </p>
+    </div>
+  );
+}
+```
+
+Or pick a date:
+
+```tsx live
+function DatePlayground() {
+  const [date, setDate] = useState("2024-01-01T12:00");
+  const timestamp = Math.floor(new Date(date).getTime() / 1000);
+
+  return (
+    <div>
+      <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} />
+      <p>Posted {Time.timeSince(timestamp)} ago</p>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [Time API reference](/docs/api/common/library/Time) for every prop, method and type.

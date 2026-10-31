@@ -1,19 +1,178 @@
 ---
 title: Random
+description: "Random numbers and picks that can be seeded."
 ---
 
-# Dependencies
+## Dependencies {#dependencies}
 
 This library does not require any dependencies.
 
-# Usage
+## Usage {#usage}
+
+### Seeded vs Unseeded {#seeded-vs-unseeded}
+
+You are able to use either the seeded Class or unseeded Instance.
 
 ```tsx
+// SeededRandom Instance with Math.random as backend
 import Random from "@arclockproject/common/library/Random";
+```
 
-function playRandom() {
-  const randomSongs = ["Jack Black", "Special day", "Neverland"];
-  const selected = Random.fromArray(randomSongs);
-  return selected; // "Neverland"
+```tsx
+// SeededRandom Class
+import { SeededRandom } from "@arclockproject/common/library/Random";
+const Random = new SeededRandom("SeedPhraseAsString-007");
+```
+
+When using unseeded, calls to methods will be unpredictable every time the code runs.
+
+When using seeded with a given seed, it will behave predictably.
+Every time the code runs it will generate same list of random actions based on the seed.
+
+The examples below are live. Edit the code to try your own values.
+
+### Seeds {#seeds}
+
+Press **Generate** a few times. The seeded row stays the same; the unseeded row changes.
+Change the seed to get a different, but still repeatable, row.
+
+```tsx live
+function SeedPlayground() {
+  const [seed, setSeed] = useState("SeedPhraseAsString-007");
+  const [run, setRun] = useState(0);
+
+  const seeded = new SeededRandom(seed);
+  const seededRow = Array.from({ length: 10 }, () => seeded.rangeInt(0, 100));
+  const unseededRow = Array.from({ length: 10 }, () => Random.rangeInt(0, 100));
+
+  return (
+    <div>
+      <input value={seed} onChange={(e) => setSeed(e.target.value)} />{" "}
+      <button onClick={() => setRun(run + 1)}>Generate</button>
+      <p>Seeded: <code>{seededRow.join(", ")}</code></p>
+      <p>Unseeded: <code>{unseededRow.join(", ")}</code></p>
+    </div>
+  );
 }
 ```
+
+### Ranges {#ranges}
+
+Rolls `rangeInt` or `rangeFloat` 1000 times and shows the lowest and highest result,
+plus how often each whole number came up.
+
+```tsx live
+function RangePlayground() {
+  const [start, setStart] = useState(1);
+  const [end, setEnd] = useState(7);
+  const [method, setMethod] = useState("rangeInt");
+  const [run, setRun] = useState(0);
+
+  const results = Array.from({ length: 1000 }, () => Random[method](start, end));
+  const counts = {};
+  for (const value of results) {
+    const key = Math.floor(value);
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  const keys = Object.keys(counts).map(Number).sort((a, b) => a - b);
+
+  return (
+    <div>
+      <select value={method} onChange={(e) => setMethod(e.target.value)}>
+        <option>rangeInt</option>
+        <option>rangeFloat</option>
+      </select>{" "}
+      start <input type="number" value={start} onChange={(e) => setStart(Number(e.target.value))} style={{ width: 60 }} />{" "}
+      end <input type="number" value={end} onChange={(e) => setEnd(Number(e.target.value))} style={{ width: 60 }} />{" "}
+      <button onClick={() => setRun(run + 1)}>Roll again</button>
+      <p>
+        Lowest: <code>{Math.min(...results)}</code>, highest: <code>{Math.max(...results)}</code>
+      </p>
+      {keys.length <= 40 &&
+        keys.map((key) => (
+          <div key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <code style={{ width: 40, textAlign: "right" }}>{key}</code>
+            <div style={{ height: 12, width: counts[key], background: "var(--ifm-color-primary)" }} />
+            <small>{counts[key]}</small>
+          </div>
+        ))}
+    </div>
+  );
+}
+```
+
+### Picking from an array {#picking-from-an-array}
+
+Edit the list (comma separated) and pick from it. Leave the seed empty for unseeded picks.
+
+```tsx live
+function PickPlayground() {
+  const [items, setItems] = useState("rock, paper, scissors");
+  const [seed, setSeed] = useState("");
+  const [picks, setPicks] = useState([]);
+  const [rng, setRng] = useState(() => new SeededRandom());
+
+  const array = items.split(",").map((item) => item.trim());
+
+  return (
+    <div>
+      <p>
+        Items <input value={items} onChange={(e) => setItems(e.target.value)} />
+      </p>
+      <p>
+        Seed{" "}
+        <input
+          value={seed}
+          onChange={(e) => {
+            setSeed(e.target.value);
+            setRng(new SeededRandom(e.target.value));
+            setPicks([]);
+          }}
+        />
+      </p>
+      <button onClick={() => setPicks([...picks, rng.fromArrayWithIndex(array)])}>Pick</button>{" "}
+      <button onClick={() => { setRng(new SeededRandom(seed)); setPicks([]); }}>Reset</button>
+      <ol>
+        {picks.map(([item, index], i) => (
+          <li key={i}>
+            <code>{JSON.stringify(item)}</code> (index {index})
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+```
+
+### Seeded map {#seeded-map}
+
+A small tile map built from a seed. The same seed always draws the same map.
+
+Because a seed always gives the same result, you can know the colors in advance.
+With the seed "island", the first tiles from the top left are always as followed:<br />
+Dark blue, dark blue, yellow and dark green.
+```tsx live
+function SeededMap() {
+  const [seed, setSeed] = useState("island");
+  const tiles = ["#2b6cb0", "#2b6cb0", "#4299e1", "#ecc94b", "#48bb78", "#48bb78", "#276749", "#718096"];
+
+  const rng = new SeededRandom(seed);
+  const grid = Array.from({ length: 12 * 20 }, () => rng.fromArray(tiles));
+
+  return (
+    <div>
+      <input value={seed} onChange={(e) => setSeed(e.target.value)} />{" "}
+      <button onClick={() => setSeed(Random.rangeInt(0, 1000000).toString())}>Random seed</button>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(20, 16px)", marginTop: 8 }}>
+        {grid.map((color, i) => (
+          <div key={i} style={{ width: 16, height: 16, background: color }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [Random API reference](/docs/api/common/library/Random) for every prop, method and type.

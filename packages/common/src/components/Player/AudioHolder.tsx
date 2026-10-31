@@ -8,6 +8,13 @@ import { usePlayer } from "./usePlayer";
 
 //#region AudioHolder.tsx
 
+/**
+ * Hidden `<audio>` element that plays the loaded entry's separate audio file.
+ * Keep it mounted (e.g. next to `MiniPlayer`) so audio keeps playing when the
+ * `VideoPlayer` is unmounted. Must be inside `PlayerContextProvider`.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/Player Guide} | {@link https://arclockproject.org/docs/api/common/components/Player API}
+ */
 function AudioHolder<metaType, listMetaType>(): JSX.Element {
   const context = usePlayer<metaType, listMetaType>();
   return (

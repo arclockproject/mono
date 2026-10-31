@@ -4,12 +4,25 @@ sidebar_label: "@arclockproject/mmd-player"
 sidebar_position: 5
 ---
 
-import { version } from "./../../../packages/mmd-player/package.json";
-import Tabs from "@theme/Tabs";
-import TabItem from "@theme/TabItem";
+import pkg from "./../../../packages/mmd-player/package.json";
+import DocCardList from "@theme/DocCardList";
 
-Latest release: <code>v{version}</code>
+Latest release: <code>v{pkg.version}</code>
+
+An MMD (MikuMikuDance) loader and player for React.
+
+## Installation {#installation}
 
 ```bash npm2yarn
 npm install @arclockproject/mmd-player
 ```
+
+The guide pages list anything else it needs.
+
+## Contents {#contents}
+
+<DocCardList />
+
+## API {#api}
+
+See the [@arclockproject/mmd-player API reference](/docs/api/mmd-player/component) for every prop and type.

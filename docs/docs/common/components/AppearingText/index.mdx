@@ -1,18 +1,25 @@
 ---
 title: AppearingText
+description: "Text that types itself out one character at a time."
 ---
 
-Dependencies for `@arclockproject/common/components/AppearingText` are
+## Dependencies {#dependencies}
 
-```
-@mui/material @emotion/react @emotion/styled
+```bash npm2yarn
+npm install @mui/material @emotion/react @emotion/styled
 ```
 
-Type text at default character/100ms",
+## Usage {#usage}
 
 ```tsx
 import { AppearingText } from "@arclockproject/common/components/AppearingText";
 ```
+
+The examples below are live. Edit the code to try your own values.
+
+### Default speed {#default-speed}
+
+One character every 100ms.
 
 ```tsx live
 <AppearingText>
@@ -22,7 +29,9 @@ import { AppearingText } from "@arclockproject/common/components/AppearingText";
 </AppearingText>
 ```
 
-Type text at a custom speed of character/20ms
+### Custom speed {#custom-speed}
+
+One character every 20ms.
 
 ```tsx live
 <AppearingText speed={20}>
@@ -31,3 +40,38 @@ Type text at a custom speed of character/20ms
   nemo quia similique hic ducimus labore corrupti cupiditate quae.
 </AppearingText>
 ```
+
+### Playground {#playground}
+
+Typing starts again whenever the text or speed changes. It accepts all MUI `Typography`
+props, like `variant`.
+
+```tsx live
+function AppearingTextPlayground() {
+  const [text, setText] = useState("Hello there! This text types itself out.");
+  const [speed, setSpeed] = useState(50);
+  const [variant, setVariant] = useState("h5");
+  const [restart, setRestart] = useState(0);
+
+  return (
+    <div>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} style={{ width: "100%" }} />
+      <p>
+        Speed {speed}ms per character. <br />
+        <input type="range" min={5} max={300} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} />
+        <select value={variant} onChange={(e) => setVariant(e.target.value)}>
+          {["h3", "h5", "body1", "caption"].map((name) => <option key={name}>{name}</option>)}
+        </select>
+        <button onClick={() => setRestart(restart + 1)}>Restart</button>
+      </p>
+      <AppearingText key={restart} speed={speed} variant={variant}>
+        {text}
+      </AppearingText>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [AppearingText API reference](/docs/api/common/components/AppearingText) for every prop, method and type.
