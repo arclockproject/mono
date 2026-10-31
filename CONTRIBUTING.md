@@ -41,15 +41,16 @@ For more context, see [Using AI in open source](https://roe.dev/blog/using-ai-in
 `pnpm run docs:dev` - This starts a docusaurus site at http://localhost:3000 to test components in real-time.
 `pnpm run packages:build` - This builds all packages.
 `pnpm run dev` - This runs `packages:build` then `docs:dev`.
+`pnpm run dev-host` - This runs `dev` and instead bind to `0.0.0.0`.
 
 ## Development Workflow
 
-1. Create a new branch: `git checkout -b feat/your-feature-name`
+1. Create a new branch: `git checkout -b <type>/<short-description>`, e.g. `feat/audio-fade` or `fix/common-random-range`. Use a type from the list below. Adding the scope is optional.
 2. Start development mode: `pnpm run dev`
-3. Make your changes and test them live in the components dedicated index.stories.tsx
-4. Check and fix code style and formatting issues: `pnpm run typecheck`
-5. Build the storybook app: `pnpm run docs:build`
-6. Commit your changes using the conventions below
+3. Make your changes and test them live in the docs site at http://localhost:3000
+4. Check types: `pnpm run docs:typecheck`, and `pnpm type-check` in the package you changed
+5. Build the docs site: `pnpm run docs:build`
+6. Commit your changes using the conventions below, e.g. `feat(common): Add fade option to Audio.`
 7. Push your branch to your fork
 8. Open a pull request
 
