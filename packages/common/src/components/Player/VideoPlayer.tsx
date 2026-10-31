@@ -100,13 +100,46 @@ interface position {
   x: number;
   y: number;
 }
+/**
+ * The main video player: 16:9 video with controls, progress bar, chapters,
+ * heatmap, subtitles, speed, fullscreen and audio-only mode. It plays whatever
+ * is loaded in the player state, so it can be unmounted and mounted again
+ * without stopping (keep `AudioHolder` mounted for that). Must be inside
+ * `PlayerContextProvider`.
+ *
+ * Changes to `videoData.id`  will make the player restart from 0 and play that instead.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/Player Guide} | {@link https://arclockproject.org/docs/api/common/components/Player API}
+ * @example
+ * <VideoPlayer videoData={{
+ *   id: "my-id-300";
+ *   title: "Cat video";
+ *   files: {
+ *     video: "/videos/cat-300.mp4";
+ *     audio: "/videos/cat-300.mp3";
+ *     subtitles: "/videos/cat-300-commentary.vtt";
+ *     thumbnail: "/videos/cat-300.png";
+ *   };
+ *   meta: { ... }; // Your data or null
+ * }} isPlaylist={false} chapters={[]} heatmap={[]} />
+ */
 function VideoPlayer<metaType, listMetaType>(props: {
+  /**
+   * Entry to load when this player mounts or the `id` changes. Leave it out to
+   * show whatever is already loaded.
+   */
   videoData?: videoData<metaType>;
+  /** `false` clears the current playlist, so only this entry plays. */
   isPlaylist: boolean;
+  /** Not used yet. */
   errorDisplay?: string;
+  /** Chapters to mark on the progress bar. */
   chapters: videoChapters[];
+  /** "Most watched" graph to draw above the progress bar. */
   heatmap: Required<videoHeatmap>[];
+  /** Not used yet. Use `settings.stickyTriggerDistance` instead. */
   ScrollTriggerDistance?: number;
+  /** Show the title over the video. It is always shown in fullscreen. */
   showInlineTitle?: boolean;
 }): JSX.Element {
   const context = usePlayer<metaType, listMetaType>();

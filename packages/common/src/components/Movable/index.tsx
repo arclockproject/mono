@@ -7,19 +7,28 @@ import type {
 import { useEffect, useRef } from "react";
 
 /**
- * @extends HTMLDivElement
- * passed `onMouseDown` and `onTouchStart` will be called BEFORE the moving logic
- * and also regardless if moving/zoom is enabled or not
+ * A `<div>` whose content can be dragged (mouse or one finger) and zoomed
+ * (mouse wheel or pinch). It fills its parent by default and hides overflow.
+ *
+ * Accepts all `<div>` props. Your `onMouseDown` and `onTouchStart` run before
+ * the drag logic, even when dragging is off. Turning a feature off resets its
+ * position or zoom.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/Movable Guide} | {@link https://arclockproject.org/docs/api/common/components/Movable API}
+ * @example
+ * <Movable enableMovement enableZoom style={{ height: 300 }}>
+ *   <img src="/map.png" />
+ * </Movable>
  */
 export default function Movable(
   props: Omit<ComponentProps<"div">, "ref"> & {
     /**
-     * Determines if movement is enabled
+     * Allow dragging the content. 
      * @default false
      */
     enableMovement?: boolean;
     /**
-     * Determines if movement is enabled
+     * Allow zooming
      * @default false
      */
     enableZoom?: boolean;

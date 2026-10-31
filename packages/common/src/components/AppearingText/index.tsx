@@ -2,10 +2,20 @@ import { Typography, type TypographyProps } from "@mui/material";
 import { useEffect, useRef } from "react";
 import type { JSX } from "react/jsx-runtime";
 
+/**
+ * MUI `Typography` that types its text out one character at a time. Typing
+ * starts again whenever `children` or `speed` changes.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/AppearingText Guide} | {@link https://arclockproject.org/docs/api/common/components/AppearingText API}
+ * @example
+ * <AppearingText speed={30} variant="h5">Hello there!</AppearingText>
+ */
 function AppearingText(
   props: Omit<TypographyProps, "ref" | "children"> & {
+    /** Text to type out. Only a plain string is supported. */
     children?: string;
     /**
+     * Milliseconds per character. Lower is faster.
      * @default 100
      */
     speed?: number;
