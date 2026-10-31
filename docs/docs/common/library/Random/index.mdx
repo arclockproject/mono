@@ -2,18 +2,30 @@
 title: Random
 ---
 
-# Dependencies
+## Dependencies {#dependencies}
 
 This library does not require any dependencies.
 
-# Usage
+## Usage {#usage}
+
+### Seeded vs Unseeded {#seeded-vs-unseeded}
+
+You are able to use either the seeded Class or unseeded Instance.
 
 ```tsx
+// SeededRandom Instance with Math.random as backend
 import Random from "@arclockproject/common/library/Random";
-
-function playRandom() {
-  const randomSongs = ["Jack Black", "Special day", "Neverland"];
-  const selected = Random.fromArray(randomSongs);
-  return selected; // "Neverland"
-}
 ```
+
+```tsx
+// SeededRandom Class
+import { SeededRandom } from "@arclockproject/common/library/Random";
+const Random = new SeededRandom("SeedPhraseAsString-007");
+```
+
+When using unseeded, calls to methods will be unpredictable every time the code runs.
+
+When using seeded with a given seed, it will behave predictably.
+Every time the code runs it will generate same list of random actions based on the seed.
+
+The examples below are live. Edit the code to try your own values.

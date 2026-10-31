@@ -1,3 +1,25 @@
 ---
 title: EventManager
 ---
+
+## Dependencies {#dependencies}
+
+This library does not require any dependencies.
+
+## Usage {#usage}
+
+```tsx
+import EventManager from "@arclockproject/common/library/EventManager";
+
+const events = new EventManager<{
+  pay: (client: string, details: { amount: number }) => void;
+}>();
+
+const onPay = (client: string, details: { amount: number }) => {
+  console.log(`${client} paid ${details.amount}`);
+};
+
+events.addListener("pay", onPay);
+events.dispatch("pay", "Alex", { amount: 100 }); // "Alex paid 100"
+events.removeListener("pay", onPay);
+```
