@@ -27,21 +27,24 @@ For more context, see [Using AI in open source](https://roe.dev/blog/using-ai-in
 - Node: ^20.20.0
 - PNPM: ^10.28.2
 - Recommended to use NVM and do `nvm install 20 && nvm use 20`
+- PNPM can be enabled with `corepack enable`, which uses the version set in `package.json`
 
 ### Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/ArcLockProject/mono.git`
+2. Clone your fork: `git clone https://github.com/<your-username>/mono.git`
 3. Navigate to the project directory: `cd mono`
 4. Install dependencies: `pnpm install`
 5. Build packages and run dev docusaurus: `pnpm run dev`
 
 ### Development Mode
 
-`pnpm run docs:dev` - This starts a docusaurus site at http://localhost:3000 to test components in real-time.
-`pnpm run packages:build` - This builds all packages.
-`pnpm run dev` - This runs `packages:build` then `docs:dev`.
-`pnpm run dev-host` - This runs `dev` and instead bind to `0.0.0.0`.
+- `pnpm run dev` - Runs `packages:build`, then `docs:dev`.
+- `pnpm run dev-host` - Same as `dev`, but binds to `0.0.0.0` so other devices on your network can open the site.
+- `pnpm run docs:dev` - Starts the docusaurus site at http://localhost:3000 to test components in real-time.
+- `pnpm run packages:build` - Builds all packages.
+
+The docs site uses the built packages, so run `pnpm run packages:build` (or restart `pnpm run dev`) after changing package code.
 
 ## Development Workflow
 
@@ -49,10 +52,19 @@ For more context, see [Using AI in open source](https://roe.dev/blog/using-ai-in
 2. Start development mode: `pnpm run dev`
 3. Make your changes and test them live in the docs site at http://localhost:3000
 4. Check types: `pnpm run docs:typecheck`, and `pnpm type-check` in the package you changed
-5. Build the docs site: `pnpm run docs:build`
-6. Commit your changes using the conventions below, e.g. `feat(common): Add fade option to Audio.`
-7. Push your branch to your fork
-8. Open a pull request
+5. Check code style: `pnpm lint` in the package you changed (`pnpm lint:fix` fixes what it can)
+6. Build the docs site: `pnpm run docs:build`
+7. Commit your changes using the conventions below, e.g. `feat(common): Add fade option to Audio.`
+8. Push your branch to your fork
+9. Open a pull request
+
+## Documentation
+
+- **API pages** are generated from the JSDoc in `packages/`. To change them, edit the JSDoc, not the files in `docs/docs/api/` (they are generated and gitignored).
+- **Guide pages** are written by hand in `docs/docs/common/` and `docs/docs/mmd-player/`. Use them for live examples (` ```tsx live `) and longer explanations.
+- New components and libraries get an API page automatically. Add a guide page if they need examples.
+
+See [AGENTS.md](./AGENTS.md) for the full JSDoc style guide.
 
 ## Commit Message Conventions
 
@@ -76,8 +88,8 @@ Current Scopes:
 
 ## Pull Request Guidelines
 
-1. Update documentation if needed
-2. Ensure all tests pass
+1. Update the JSDoc and guide pages if needed
+2. Ensure type checks, lint and `pnpm run docs:build` pass
 3. Address any feedback from code reviews
 4. Once approved, your PR will be merged
 
