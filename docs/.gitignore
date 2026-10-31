@@ -7,6 +7,8 @@
 # Generated files
 .docusaurus
 .cache-loader
+# API pages generated from JSDoc by plugins/api-docs (_category_.json files are committed)
+docs/api/**/*.mdx
 
 # Remove automatically added Physics binaries
 static/ammo.wasm.wasm
