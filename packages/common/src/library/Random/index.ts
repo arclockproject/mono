@@ -62,6 +62,8 @@ class SeededRandom {
    */
   random: () => number = Math.random;
   /**
+   * Creates a generator. The same seed always gives the same numbers, in the same order.
+   *
    * @param seed Any string. Without one (or with `""`), `Math.random()` is used
    * and results are not repeatable.
    */

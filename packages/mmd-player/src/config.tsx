@@ -12,7 +12,7 @@ import type { MmdRuntime } from "babylon-mmd/esm/Runtime/mmdRuntime.js";
 
 //#region DEFAULTS
 
-/** A 3D position/angle vector. */
+/** A 3D position or rotation. Rotations are in radians, around each axis. */
 type SimpleVector = { x: number; y: number; z: number };
 
 import type { BaseRuntime } from "./BaseRuntime";
@@ -105,7 +105,7 @@ const MMDLoadDetails = {
   modelMorph: [] as MmdMorphController[],
   /** The running scene and its parts. Set while playing. */
   controller: {
-    /** Allows to offset the model and/or camera from the audio. Values in seconds. */
+    /** Shifts the motion of the characters and/or camera against the music. Values in frames. */
     frameOffset: {
       model: 0,
       camera: 0,
@@ -113,6 +113,7 @@ const MMDLoadDetails = {
     mainRuntime: undefined as MmdRuntime | undefined,
     musicRuntime: undefined as MmdRuntime | undefined,
     cameraRuntime: undefined as MmdRuntime | undefined,
+    /** The Babylon.js scene. */
     scene: undefined as Scene | undefined,
     shadowGenerator: undefined as ShadowGenerator | undefined,
     directionalLight: undefined as DirectionalLight | undefined,
@@ -142,7 +143,9 @@ const MMDLoadDetails = {
   }[],
   /** Selected render resolutions, as indexes into the resolution list. */
   resolutions: {
+    /** Resolution used in fullscreen. `0` is the screen size. */
     fullscreen: validResolutionsDefaults.fullscreen as number,
+    /** Resolution used outside fullscreen. */
     normal: validResolutionsDefaults.normal as number,
     /** Swap width and height, for portrait. */
     swappedAspectRatio: false,

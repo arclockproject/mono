@@ -23,7 +23,7 @@ setInterval(() => {
 /**
  * Holds the player state shared by `VideoPlayer`, `MiniPlayer` and
  * `AudioHolder`. Put it high in the tree, e.g. around your router, so playback
- * survives page changes.
+ * survives page changes. Only its `children` can use the player.
  *
  * `metaType` is the type of each entry's `meta`, and `listMetaType` the type of
  * `playlistMeta`.

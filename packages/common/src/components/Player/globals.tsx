@@ -4,6 +4,7 @@
  * One segment of the "most watched" graph drawn above the progress bar.
  */
 type videoHeatmap = {
+  /** Unique identifier. */
   id: string;
   /** Segment start, in seconds. */
   start_time: number;
@@ -31,6 +32,7 @@ type videoData<metaType> = {
   id: string;
   /** Title shown in the player and mini player. */
   title: string;
+  /** URLs of the data. */
   files: {
     /** URL of the video file. */
     video: string;

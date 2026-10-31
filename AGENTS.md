@@ -146,7 +146,7 @@ sliders, buttons) that show the result on the page instead of `console.log`.
   `docs/src/theme/ReactLiveScope/index.tsx`. Array is exposed as `ArrayUtil` so
   it doesn't hide the built-in `Array`.
 - Use `REMOTE.base` for demo files, and `beepUrl(hz)` for
-  a short sound. `REMOTE.noname0310` can't be used for anything other then mmd-player.
+  a short sound. `REMOTE.noname0310` can't be used for anything other than mmd-player.
 - Several components in one block need ` ```tsx live noInline ` and `render(<App />)`.
 - Pass stable arrays and objects (e.g. `useMemo`) to components that reset
   when a prop changes, like `FileBrowser`.

@@ -4,17 +4,30 @@ import LibArray from "@arclockproject/common/library/Array";
  * A 2D point or offset on the grid. `x` is the column and `y` is the row.
  */
 class Vector2D {
+  /**
+   * Creates a vector. `getNode` and the other `Map2D` methods also take a plain `{ x, y }`.
+   *
+   * @param x Column, counted from 0 on the left.
+   * @param y Row, counted from 0 at the top.
+   */
   constructor(
     public x: number,
     public y: number,
   ) {}
   /**
+   * Measures the straight-line distance, not the number of steps on the grid.
+   *
+   * @param other The point to measure to.
    * @returns Straight-line distance to `other`.
+   * @example
+   * new Vector2D(0, 0).distance(new Vector2D(3, 4)); // 5
    */
   distance(other: Vector2D): number {
     return Math.sqrt((this.x - other.x) ** 2 + (this.y - other.y) ** 2);
   }
   /**
+   * Copies the vector, so it can be changed without changing the original.
+   *
    * @returns A new vector with the same `x` and `y`.
    */
   copy(): Vector2D {
@@ -23,6 +36,7 @@ class Vector2D {
   /**
    * Adds `vector` to this vector in place. Use `copy()` first to keep the original.
    *
+   * @param vector The offset to add. It is not changed.
    * @returns This vector, for chaining.
    * @example
    * new Vector2D(1, 1).add(new Vector2D(2, 0)); // Vector(x=3,y=1)
@@ -50,6 +64,9 @@ class Node2D {
   /** The map this node belongs to. Set by the `Map2D` constructor. */
   public mapRef: Map2D<this> | null = null;
   /**
+   * Creates a node. Usually made in the `generator` of `Map2D.generateNodeMatrix`,
+   * which passes the right `pos`.
+   *
    * @param pos Position on the map. Must match the node's place in the matrix.
    * @param cost How expensive it is to step onto this node. Paths prefer lower costs.
    * @param traversable `false` makes this node a wall.
@@ -60,12 +77,17 @@ class Node2D {
     public traversable: boolean = true,
   ) {}
   /**
+   * Measures the straight-line distance between the two nodes' positions.
+   *
+   * @param other The node to measure to.
    * @returns Straight-line distance to `other`.
    */
   distance(other: this): number {
     return this.pos.distance(other.pos);
   }
   /**
+   * Lists the neighbors a path can step onto. Used by `Map2D.calculatePath`.
+   *
    * @returns The nodes up, down, left and right of this one that exist and are traversable.
    */
   getTraversableNeighbors(): this[] {
@@ -77,6 +99,8 @@ class Node2D {
     ].filter((e): e is this => !!e && e.traversable);
   }
   /**
+   * Lists every neighbor, including walls. Nodes outside the map are left out.
+   *
    * @returns The nodes up, down, left and right of this one that exist, including walls.
    */
   getNeighbors(): this[] {
@@ -91,6 +115,7 @@ class Node2D {
    * Follows `cameFrom` back from this node until it reaches `end`. Used by
    * `Map2D.calculatePath`. Logs an error and returns what it has if the chain breaks.
    *
+   * @param end The node to stop at, usually the start of the path.
    * @returns Nodes from this node to `end`, both included.
    */
   traversePathTill(end: this): this[] {
@@ -128,7 +153,13 @@ class Node2D {
  */
 class Map2D<CustomNode2D extends Node2D = Node2D> {
   /**
+   * Looks up the node at a position.
+   *
+   * @param pos A `Vector2D` or a plain `{ x, y }`.
    * @returns The node at `pos`, or `null` if it is outside the map.
+   * @example
+   * map.getNode({ x: 0, y: 0 }); // top-left node
+   * map.getNode({ x: -1, y: 0 }); // null
    */
   getNode(pos: Vector2D): CustomNode2D | null;
   getNode(pos: { x: number; y: number }): CustomNode2D | null;
@@ -184,6 +215,8 @@ class Map2D<CustomNode2D extends Node2D = Node2D> {
   }
   /**
    * Calls `forEach` for every node, row by row.
+   *
+   * @param forEach Called with each node. Changing the node in place is fine.
    */
   forEachNode(forEach: (node: CustomNode2D) => void): void {
     for (const row of this.nodes) {
@@ -217,6 +250,8 @@ class Map2D<CustomNode2D extends Node2D = Node2D> {
   /** Number of rows. */
   public height = 0;
   /**
+   * Creates a map from a node matrix, usually made with `Map2D.generateNodeMatrix`.
+   *
    * @param nodes Rows of nodes, `[y][x]`. All rows should be the same length.
    * Each node's `mapRef` is set to this map.
    */

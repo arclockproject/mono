@@ -11,7 +11,6 @@ the JSDoc is the single source for both IDE hovers and the website.
 - Writes `docs/docs/api/**/*.mdx` on `docusaurus start` and `build`, and again
   when a package source file changes. These pages are gitignored, so never edit them.
 - The `_category_.json` files next to them are committed and set the sidebar labels and order.
-- To add a new package, see [ADDING_A_PACKAGE.md](./ADDING_A_PACKAGE.md).
 
 ## Files
 

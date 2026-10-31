@@ -21,7 +21,10 @@ type EventMapBlank = { [key: string]: (...any: any) => void };
 class EventManager<EventMap extends EventMapBlank> {
   private events: { [key in keyof EventMap]?: EventMap[key][] } = {};
   /**
-   * @param defaults Listeners to start with, per event.
+   * Creates an event manager with no listeners, or with `defaults`.
+   *
+   * @param defaults Listeners to start with, per event. The arrays are used as they are, not
+   * copied, so adding or removing listeners to said array also changes them in EventManager.
    */
   constructor(defaults?: { [key in keyof EventMap]: EventMap[key][] }) {
     this.events = defaults ?? ({} as NonNullable<typeof defaults>);

@@ -11,6 +11,7 @@ const overlayFull = "rgba(39, 39, 39, 1)";
  * A floating desktop-style window. Drag it by the title bar, resize it from the
  * right edge, bottom edge or bottom-right corner (mouse only), and maximize it
  * with the `[ ]` button. It stays inside the browser window while dragging.
+ * `children` is the content below the title bar.
  *
  * It is controlled: the X button only calls `onClose`, so set `open` to
  * `false` yourself to hide it.
