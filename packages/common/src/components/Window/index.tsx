@@ -7,22 +7,60 @@ import type { JSX } from "react/jsx-runtime";
 const overlay90 = "rgba(39, 39, 39, 0.9)";
 const overlayFull = "rgba(39, 39, 39, 1)";
 
+/**
+ * A floating desktop-style window. Drag it by the title bar, resize it from the
+ * right edge, bottom edge or bottom-right corner (mouse only), and maximize it
+ * with the `[ ]` button. It stays inside the browser window while dragging.
+ *
+ * It is controlled: the X button only calls `onClose`, so set `open` to
+ * `false` yourself to hide it.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/Window Guide} | {@link https://arclockproject.org/docs/api/common/components/Window API}
+ * @example
+ * const [open, setOpen] = useState(true);
+ *
+ * <Window title="Notes" open={open} onClose={() => setOpen(false)}>
+ *   Hello!
+ * </Window>
+ */
 export default function Window(
   props: PropsWithChildren<{
+    /** Text in the title bar. */
     title?: string;
+    /** Show the window. It stays mounted when hidden. */
     open?: boolean;
+    /** Called when the X button is clicked. */
     onClose?: () => void;
+    /** Called when the window is clicked or touched, e.g. to bring it to the front. */
     onFocus?: () => void;
+    /** Called on right-click of the title bar. */
     onContextMenu?: (
       event: React.MouseEvent<HTMLDivElement, MouseEvent>,
     ) => void;
+    /** Hide the X button. */
     noClose?: boolean;
+    /**
+     * Smallest width when resizing, in pixels.
+     * @default 200
+     */
     minWidth?: number;
+    /**
+     * Smallest height when resizing, in pixels.
+     * @default 200
+     */
     minHeight?: number;
+    /**
+     * Starting position of the top-left corner, in pixels from the top-left of the screen.
+     * @default { x: 100, y: 100 }
+     */
     spawnCoordinate?: {
       x: number;
       y: number;
     };
+    /**
+     * Starting size, in pixels.
+     * @default { width: 300, height: 300 }
+     */
     spawnSize?: {
       width: number;
       height: number;

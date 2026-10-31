@@ -24,8 +24,8 @@ const getFileType = (file: string): fileType => {
 /**
  * @param file Location either as URL or relative path.
  * @example
- * loadMMDFileByURL("https://example.com/folder/file.mp3")
- * loadMMDFileByURL("/folder/file.mp3") // Will use current domain
+ * loadMMDFileByURL("https://example.com/folder/Miku.chara.pmx")
+ * loadMMDFileByURL("/folder/Miku.chara.mp3") // Will use current domain
  */
 export function loadMMDFileByURL(file: string): void {
   const fileType = getFileType(file);

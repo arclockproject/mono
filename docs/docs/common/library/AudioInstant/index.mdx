@@ -1,0 +1,26 @@
+---
+title: AudioInstant
+---
+
+## Dependencies {#dependencies}
+
+This library does not require any dependencies.
+
+## Usage {#usage}
+
+Same idea as [Audio](../Audio/index.mdx), but uses the Web Audio API. Files are fetched and decoded once,
+so later plays start without delay.
+
+```tsx
+import { AudioInstantManagerGlobal } from "@arclockproject/common/library/AudioInstant";
+
+function Example() {
+  return (
+    <button
+      onClick={() => {
+        AudioInstantManagerGlobal.play("/assets/sound.mp4");
+      }}
+    />
+  );
+}
+```

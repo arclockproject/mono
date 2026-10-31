@@ -18,6 +18,8 @@ import {
 import Image from "@arclockproject/common/components/Image";
 import { AppearingText } from "@arclockproject/common/components/AppearingText";
 import FileBrowser from "@arclockproject/common/components/FileBrowser";
+import Time from "@arclockproject/common/library/Time";
+import Random, { SeededRandom } from "@arclockproject/common/library/Random";
 
 import MMD from "@arclockproject/mmd-player";
 const ReactLiveScope: unknown = {
@@ -48,6 +50,9 @@ const ReactLiveScope: unknown = {
   FileBrowser,
   MMD,
   Movable,
+  Time,
+  Random,
+  SeededRandom,
 };
 
 export default ReactLiveScope;

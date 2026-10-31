@@ -72,13 +72,35 @@ function depthUntilNotLengthZero<k extends { children: k[] }>(
     return 0;
   }
 }
+/**
+ * Shows a list of file paths as folders and files that can be browsed by
+ * clicking. A breadcrumb bar at the top jumps back up; `^` goes to the root.
+ *
+ * Single-child folders at the top are opened automatically, so a shared prefix
+ * like `/home/user` does not need clicking through.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/FileBrowser Guide} | {@link https://arclockproject.org/docs/api/common/components/FileBrowser API}
+ * @example
+ * <FileBrowser
+ *   fileSystemRaw={["/docs/readme.md", "/images/logo.png"]}
+ *   customAction={(file) => console.log(file)}
+ * />
+ */
 function FileBrowser(props: {
+  /** Full file paths, separated by `/`. Folders are built from them. */
   fileSystemRaw: string[];
+  /** Prefix added to every path, e.g. a base URL. */
   base?: string;
   /**
+   * Fill the parent element. When `false`, the browser is at most 972px wide and 700px tall.
    * @default true
    */
   fillContainer?: boolean;
+  /**
+   * Called with the full path (including `base`) when a file is clicked.
+   * 
+   * Not called for folders.
+   */
   customAction?: (file: string) => void;
 }): JSX.Element {
   const [fileSystem, setFileSystem] = useState<Entry[]>([]);

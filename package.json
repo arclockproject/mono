@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm packages:build && pnpm docs:dev",
+    "dev-host": "pnpm packages:build && pnpm docs:dev --host 0.0.0.0",
     "docs:build": "pnpm --filter=docs build",
     "docs:serve": "pnpm --filter=docs serve",
     "docs:dev": "pnpm --filter=docs start",

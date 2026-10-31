@@ -213,8 +213,26 @@ const allLayerDraw = async (
   return;
 };
 
+/**
+ * Shows a Photoshop (`.psd`) file. Nothing downloads until the user clicks
+ * "Load PSD File". Then the flattened image is shown, with a layer panel on
+ * the right to toggle layers and redraw.
+ *
+ * It fills its parent (`position: absolute; inset: 0`), so give the parent a
+ * size and `position: relative`. Redrawn layers can look different from
+ * Photoshop, since many blend modes are not implemented.
+ *
+ * Of the `<div>` props, only `style` and the mouse, touch and wheel handlers are used.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/PSDViewer Guide} | {@link https://arclockproject.org/docs/api/common/components/PSDViewer API}
+ * @example
+ * <div style={{ position: "relative", height: 600 }}>
+ *   <PSDViewer src="/art/poster.psd" />
+ * </div>
+ */
 function PSDViewer(
   props: HTMLAttributes<HTMLDivElement> & {
+    /** URL of the `.psd` file. */
     src: string;
   },
 ): JSX.Element {

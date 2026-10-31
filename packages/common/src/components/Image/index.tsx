@@ -25,16 +25,42 @@ const guessExtension = (file: string) => {
   const type = extensions[extension];
   return type ?? "image";
 };
+/**
+ * A component that can render a PSD file, such as `PSDViewer`.
+ */
 type validPSDViewer = (
   props: HTMLAttributes<HTMLDivElement> & { src: string },
 ) => JSX.Element;
 
+/**
+ * Shows an image, video or PSD file inside a `Movable`, so it can be dragged
+ * and zoomed. Videos play muted and on a loop.
+ *
+ * PSD support is opt-in through `psdRenderer`, so `PSDViewer` and its
+ * dependencies are only bundled when you need them.
+ *
+ * @see {@link https://arclockproject.org/docs/common/components/Image Guide} | {@link https://arclockproject.org/docs/api/common/components/Image API}
+ * @example
+ * <Image src="/photos/cat.webp" renderer="auto" enableMovement />
+ */
 function Image(props: {
+  /** URL of the file. */
   src: string;
+  /** Alt text. Only used for images. */
   alt?: string;
+  /** Ref to the `<img>` element, when rendering an image. Populated on mount/rerender. */
   refPropImage?: React.RefObject<HTMLImageElement>;
+  /** Ref to the `<video>` element, when rendering a video. Populated on mount/rerender. */
   refPropVideo?: React.RefObject<HTMLVideoElement>;
+  /**
+   * How to render `src`. `"auto"` picks from the lowercase file extension:
+   * mp4, mov and mkv are videos, anything else is an image. PSD files need `".psd"`.
+   */
   renderer: "video" | "psd" | "image" | "auto";
+  /**
+   * Component used when `renderer` is `"psd"`. Pass `isLazy: true` with a
+   * `React.lazy` component to load it only when needed.
+   */
   psdRenderer?:
     | {
         isLazy: false;
@@ -44,13 +70,20 @@ function Image(props: {
         isLazy: true;
         component: LazyExoticComponent<validPSDViewer>;
       };
+  /** Start playing videos right away. */
   autoPlay?: boolean;
+  /** Show video controls. */
   controls?: boolean;
+  /** Called when the file has loaded. */
   onLoad?: ReactEventHandler<HTMLDivElement | HTMLVideoElement>;
+  /** Called when the file fails to load. */
   onError?: ReactEventHandler<HTMLDivElement | HTMLVideoElement>;
 
+  /** Style of the outer `Movable` container. */
   styleRoot?: React.CSSProperties;
+  /** Style of the image, video or PSD element. */
   styleImage?: React.CSSProperties;
+  /** Allow dragging and zooming. */
   enableMovement: boolean;
 }): JSX.Element {
   const renderer =

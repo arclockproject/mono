@@ -1,3 +1,15 @@
+/**
+ * Plays sound files with the Web Audio API. Each file is downloaded and decoded
+ * once, so later plays start with no delay. Every `play` starts a new sound,
+ * even for the same file.
+ *
+ * Browser only: creating one needs `window.AudioContext` and so it breaks in SSG and SSR.
+ *
+ * **Note**: This class is not as tested as its sibling `Audio`.
+ * Unexpected behaviour is to be expected at the current state of the Class.
+ *
+ * @see {@link https://arclockproject.org/docs/common/library/AudioInstant Guide} | {@link https://arclockproject.org/docs/api/common/library/AudioInstant API}
+ */
 class AudioInstantManager {
   private audioContext: AudioContext;
   private cacheOnceShot: {
@@ -9,6 +21,9 @@ class AudioInstantManager {
       gainNode: GainNode;
     };
   } = {};
+  /**
+   * Volume sounds play at, from 0 to 1. Change it with `setMaxVolume`.
+   */
   maxVolume = 1;
 
   constructor() {
@@ -17,6 +32,11 @@ class AudioInstantManager {
     )();
   }
 
+  /**
+   * Sets the volume for new sounds and for sounds tracked by `stopInstance`.
+   *
+   * @param volume From 0 (silent) to 1 (full).
+   */
   public setMaxVolume(volume: number): void {
     this.maxVolume = volume;
     for (const key in this.cacheInstance) {
@@ -39,13 +59,27 @@ class AudioInstantManager {
     return this.cacheOnceShot[path]!;
   }
 
+  /**
+   * Plays the file at `path`. The first play of a file waits for it to download.
+   *
+   * @param path URL of the audio file.
+   * @param options How to play it. All are optional.
+   * @returns Resolves once the sound has started.
+   * @example
+   * await AudioInstantManagerGlobal.play("/sounds/hit.mp3", { speed: 1.5 });
+   */
   public async play(
     path: string,
     options?: {
+      /** Not used for playback. With `gradual`, setting it stops the sound from being tracked for `stopInstance`. */
       singleInstance?: boolean;
+      /** Repeat when it reaches the end. */
       loop?: boolean;
+      /** Fade in over 1 second. */
       gradual?: boolean;
+      /** Playback rate, where `1` is normal speed. */
       speed?: number;
+      /** Not supported here yet, and ignored at the moment. */
       preservesPitch?: boolean;
     },
   ): Promise<void> {
@@ -87,6 +121,12 @@ class AudioInstantManager {
     }
   }
 
+  /**
+   * Stops the tracked sound for `path`. Only the latest sound played with
+   * `gradual: true` is tracked per file.
+   *
+   * @param path The same URL that was passed to `play`.
+   */
   public stopInstance(path: string): void {
     const instance = this.cacheInstance[path];
     if (instance) {
@@ -96,12 +136,19 @@ class AudioInstantManager {
     }
   }
 
+  /**
+   * Stops every tracked sound. See `stopInstance` for which sounds are tracked.
+   */
   public stopAllInstances(): void {
     for (const key in this.cacheInstance) {
       this.stopInstance(key);
     }
   }
 }
+/**
+ * Shared `AudioInstantManager` for the whole app. It is created when this
+ * module is imported, so only import it in the browser.
+ */
 const AudioInstantManagerGlobal: AudioInstantManager =
   new AudioInstantManager();
 export { AudioInstantManager, AudioInstantManagerGlobal };
