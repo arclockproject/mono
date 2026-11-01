@@ -20,14 +20,13 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/arclockproject/mono.git",
-    "directory": "package/common"
+    "directory": "packages/common"
   },
   "scripts": {
     "build": "NODE_ENV=production tsdown",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "prepare": "pnpm simple-git-hooks",
-    "release": "bumpp --commit --push --tag",
     "type-check": "tsc --noEmit",
     "vite": "vite"
   },

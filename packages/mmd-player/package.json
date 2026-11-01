@@ -20,13 +20,12 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/arclockproject/mono.git",
-    "directory": "package/mmd-player"
+    "directory": "packages/mmd-player"
   },
   "scripts": {
     "build": "NODE_ENV=production tsdown",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "release": "bumpp --commit --push --tag",
     "type-check": "tsc --noEmit",
     "vite": "vite"
   },

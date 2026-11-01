@@ -11,6 +11,8 @@
     "docs:typecheck": "pnpm --filter=docs typecheck",
     "packages:build": "pnpm --filter='./packages/*' build",
     "package": "pnpm packages:build && pnpm pack --filter='./packages/*'",
+    "release-preview:common": "node scripts/release.mjs common --dry-run",
+    "release-preview:mmd-player": "node scripts/release.mjs mmd-player --dry-run",
     "prepare": "pnpm simple-git-hooks",
     "lint": "echo 'placeholder'",
     "type-check": "echo 'placeholder'"
