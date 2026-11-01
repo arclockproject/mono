@@ -1,6 +1,6 @@
 {
   "name": "@arclockproject/common",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "ArcLock Project",
   "description": "Common reusable components and library utils.",
   "homepage": "https://arclockproject.org/docs/common/",

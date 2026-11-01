@@ -1,3 +1,9 @@
+## 1.2.1 (2026-11-01)
+
+### 📖 Documentation
+
+- Add JSDoc to library and component exports. ([#6](https://github.com/arclockproject/mono/pull/6)) @arturwagneruk
+
 ## 1.2.0
 
 ### Features
