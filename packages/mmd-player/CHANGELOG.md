@@ -1,3 +1,9 @@
+## 0.1.2 (2026-11-01)
+
+### 📖 Documentation
+
+- Add JSDoc to the MMD component. ([#6](https://github.com/arclockproject/mono/pull/6)) @arturwagneruk
+
 ## 0.1.1
 
 ### Chore
