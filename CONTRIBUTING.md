@@ -79,12 +79,22 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/) for clear
 - `test:` Adding or updating tests
 - `chore:` Maintenance tasks, dependencies, etc.
 
+For a breaking change, add `!` after the type or scope, e.g. `feat(common)!: Rename Audio to AudioManager.`
+
 Current Scopes:
 
 - `(docs)` Docusaurus documentation
 - `(common)` @arclockproject/common
 - `(mmd-player)` @arclockproject/mmd-player
 - `(mono)` For anything else outside those scopes. Generally monorepo related.
+
+## Releasing
+
+1. Preview: `pnpm run release-preview:common` (or swap for other package).
+2. Actions → **Release** on `dev`, pick the package.
+3. Approve on npmjs.com → package → **Staged Packages**.
+
+Only commits with the package's scope count. `!` → major, `feat` → minor, else patch.
 
 ## Pull Request Guidelines
 
