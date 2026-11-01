@@ -1,6 +1,7 @@
 name: deploy-docs
 
-on:
+on:    
+  workflow_dispatch: # Allow for manual re-deployment
   push:
     branches:
       - "dev" # change to the branch you wish to deploy from
