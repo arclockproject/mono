@@ -56,7 +56,7 @@ function Example() {
 There are two kinds of sounds:
 
 - **One-shot** (default): every `play` starts the file from the beginning, and plays can overlap.
-  Good for clicks and effects.
+  Each overlapping play uses its own `<audio>` element. Good for clicks and effects.
 - **Single instance** (`singleInstance: true`): one shared player per file. It resumes where it
   stopped and is the only kind `stopInstance` can stop. Good for music.
 
@@ -76,6 +76,83 @@ function SoundEffects() {
           {frequency} Hz
         </button>
       ))}
+    </div>
+  );
+}
+```
+
+### Limiting overlapping sounds {#limiting-overlapping-sounds}
+
+To cap how many copies of a one-shot sound can play at once, create your own `AudioManager`
+with the `cache` option:
+
+```tsx
+const sfx = new AudioManager({ cache: { maxInstances: 5, onMax: "drop" } });
+```
+
+`onMax` decides what happens at the limit:
+
+- `"drop"` skips the sound.
+- `"throw"` throws an `Error`.
+- A function decides. Return `true` to skip the sound.
+
+`AudioManagerGlobal` has no limit. It only warns in the console past 10.
+
+Pick a limit, then play the same beep 5 times at once.
+
+```tsx live
+function LimitPlayground() {
+  const [maxInstances, setMaxInstances] = useState(3);
+  const [mode, setMode] = useState("drop");
+  const [log, setLog] = useState([]);
+
+  const playFive = () => {
+    let result;
+    const onMax = {
+      drop: (path, count) => {
+        result = `skipped, ${count} busy`;
+        return true;
+      },
+      warn: (path, count) => {
+        result = `created element ${count + 1}`;
+      },
+      throw: "throw",
+    }[mode];
+    
+    const manager = new AudioManager({ cache: { maxInstances, onMax } });
+    const lines = [];
+    for (let i = 1; i <= 5; i++) {
+      result = "played";
+      try {
+        manager.play(beepUrl(440));
+      } catch (error) {
+        result = `threw "${error.message}"`;
+      }
+      lines.push(`Play ${i}: ${result}`);
+    }
+    setLog(lines);
+  };
+
+  return (
+    <div>
+      <label>
+        maxInstances{" "}
+        <input
+          type="number" min={1} max={5} value={maxInstances}
+          onChange={(e) => setMaxInstances(Number(e.target.value))}
+          style={{ width: 50 }}
+        />
+      </label>{" "}
+      <label>
+        onMax{" "}
+        <select value={mode} onChange={(e) => setMode(e.target.value)}>
+          <option value="drop">drop (function returning true)</option>
+          <option value="warn">warn (function returning nothing)</option>
+          <option value="throw">"throw"</option>
+        </select>
+      </label>{" "}
+      <button onClick={playFive}>Play 5 at once</button>
+      <pre>{log.join("\n") || "Press the button."}</pre>
     </div>
   );
 }
