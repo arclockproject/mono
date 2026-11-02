@@ -1,9 +1,41 @@
 /**
+ * Options for `new AudioManager()`.
+ */
+type AudioManagerOptions = {
+  /**
+   * Limits how many `<audio>` elements one-shot sounds keep per file.
+   * Single-instance sounds always use one element, so this doesn't apply to them.
+   * Leave it out for no limit.
+   */
+  cache?: {
+    /**
+     * Most elements kept per file. When this many exist and none is free,
+     * `onMax` runs before another is created.
+     *
+     * Example: with `maxInstances: 10`, `onMax` runs before the 11th would be created.
+     *
+     * `1` or lower still allows 1 element.
+     */
+    maxInstances: number;
+    /**
+     * What to do when the limit is reached:
+     * - `"drop"`: don't create the element. The sound doesn't play.
+     * - `"throw"`: throw an `Error` from `play`.
+     * - A function: called with the file path and the number of elements for it.
+     *   Return `true` to drop the sound. Any other return value, including none,
+     *   creates the element and plays the sound.
+     */
+    onMax: "drop" | "throw" | ((path: string, count: number) => boolean | void);
+  };
+};
+
+/**
  * Plays sound files using `<audio>` elements, with fade in and out.
  *
  * There are two kinds of sounds:
  * - **One-shot** (default): each `play` starts the file from the beginning, and
  *   overlapping plays of the same file are allowed. Good for clicks and effects.
+ *   The number of overlapping plays can be limited with the `cache` option.
  * - **Single instance** (`singleInstance: true`): one shared element per file,
  *   which resumes where it stopped and can be stopped with `stopInstance`.
  *   Good for music and ambience.
@@ -27,10 +59,30 @@ class AudioManager {
    * Volume sounds play at, from 0 to 1. Change it with `setMaxVolume`.
    */
   maxVolume = 1;
-  //   constructor() {
-  //     this.audioContext = new (window.AudioContext ||
-  //       (window as any).webkitAudioContext)();
-  //   }
+  /**
+   * Options passed to the constructor. Changes apply to the next `play`.
+   */
+  options: AudioManagerOptions;
+  /**
+   * @param options Leave it out to keep the old behaviour: a console warning
+   * once a file has more than 10 one-shot elements, with no limit on how many
+   * are created. Pass `{}` for no limit and no warnings.
+   * @example
+   * new AudioManager({ cache: { maxInstances: 5, onMax: "drop" } });
+   */
+  constructor(
+    options: AudioManagerOptions = {
+      // Temporary, to keep the warning the previous version had.
+      // @todo Remove this default in the next breaking change.
+      cache: {
+        maxInstances: 11,
+        onMax: (path, count) =>
+          console.warn(`Cache for '${path}' exceeded 10 instances (${count})!`),
+      },
+    },
+  ) {
+    this.options = options;
+  }
   /**
    * Sets the volume for all sounds. Single-instance sounds that are playing
    * change right away, and any fade on them stops.
@@ -52,28 +104,34 @@ class AudioManager {
   private getCacheOnceShot(
     path: string,
     { isPaused }: { isPaused: boolean },
-  ): HTMLAudioElement {
-    if (!this.cacheOnceShot[path]) {
+  ): HTMLAudioElement | null {
+    const instances = this.cacheOnceShot[path];
+    if (!instances) {
       const audio = document.createElement("audio");
       audio.src = path;
       audio.volume = 0;
       this.cacheOnceShot[path] = [audio];
       return audio;
     } else {
-      if (this.cacheOnceShot[path].length > 10)
-        console.warn(
-          `Cache for '${path}' exceeded 10 instances (${this.cacheOnceShot[path].length})!`,
-        );
-      const index = this.cacheOnceShot[path].findIndex(
-        (audio) => audio.paused === isPaused,
-      );
-      if (index !== -1) {
-        console.log("Returning instance ", index);
-        return this.cacheOnceShot[path][index]!;
+      const instance = instances.find((audio) => audio.paused === isPaused);
+      if (instance) return instance;
+
+      if (
+        this.options.cache &&
+        instances.length >= this.options.cache.maxInstances
+      ) {
+        switch (this.options.cache.onMax) {
+          case "drop":
+            return null;
+          case "throw":
+            throw new Error(`AudioManager reached max instances allowed on '${path}'`);
+          default:
+            if (this.options.cache.onMax(path, instances.length)) return null;
+        }
       }
       const audio = document.createElement("audio");
       audio.src = path;
-      this.cacheOnceShot[path].push(audio);
+      instances.push(audio);
       return audio;
     }
   }
@@ -116,6 +174,7 @@ class AudioManager {
           audio: this.getCacheOnceShot(path, { isPaused: true }),
           effects: null,
         };
+    if (audio === null) return;
     if (effects !== null) {
       effects.forEach((effect) => {
         clearInterval(effect);
@@ -134,7 +193,6 @@ class AudioManager {
     }
     audio.play();
     const interval = setInterval(() => {
-      console.log(audio.volume);
       if (audio.paused || audio.volume >= this.maxVolume) {
         audio.volume = this.maxVolume;
         clearInterval(interval);
@@ -184,7 +242,6 @@ class AudioManager {
       return;
     }
     const interval = setInterval(() => {
-      console.log(audio.volume);
       if (audio.paused || audio.volume <= 0) {
         audio.volume = 0;
         audio.pause();
@@ -199,6 +256,10 @@ class AudioManager {
 /**
  * Shared `AudioManager` for the whole app, so volume and single-instance
  * sounds are managed in one place.
+ * 
+ * Default configuration:
+ * - Warn when single sound has more then 10 instances
+ * - No instance limit for single sound 
  *
  * @example
  * import { AudioManagerGlobal } from "@arclockproject/common/library/Audio";
@@ -206,4 +267,5 @@ class AudioManager {
  * AudioManagerGlobal.play("/sounds/click.mp3");
  */
 const AudioManagerGlobal: AudioManager = new AudioManager();
+export type { AudioManagerOptions };
 export { AudioManager, AudioManagerGlobal };
