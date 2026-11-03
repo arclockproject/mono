@@ -4,7 +4,7 @@ import { Box, Button, InputAdornment, TextField } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useState } from "react";
 import type { JSX } from "react/jsx-runtime";
-import { MMDLoadDetails, overlay90 } from "./config";
+import { type MMDPlayer, overlay90 } from "./config";
 
 //#endregion
 
@@ -13,8 +13,10 @@ import { MMDLoadDetails, overlay90 } from "./config";
 function ControlsDrawer(props: {
   ready: boolean;
   toggleMobile: () => void;
+  player: MMDPlayer;
 }): JSX.Element {
   const [isHidden, setHidden] = useState(true);
+  const { MMDLoadDetails, root } = props.player;
   const theme = useTheme();
   return (
     <Box
@@ -64,7 +66,10 @@ function ControlsDrawer(props: {
       >
         Toggle Gravity
       </Button> */}
-        <Button id="toggle-cameras" style={{ padding: "8px", margin: "8px" }}>
+        <Button
+          className="toggle-cameras"
+          style={{ padding: "8px", margin: "8px" }}
+        >
           Toggle Cameras
         </Button>
 
@@ -74,7 +79,9 @@ function ControlsDrawer(props: {
             //     "div#mmd-render-root"
             //   )!;
             const canvas =
-              document.querySelector<HTMLCanvasElement>("canvas#mmd-render")!;
+              root.current!.querySelector<HTMLCanvasElement>(
+                "canvas.mmd-render",
+              )!;
             const widthOffset = window.screen.orientation.type.startsWith(
               "landscape",
             )
@@ -99,9 +106,9 @@ function ControlsDrawer(props: {
         </Button>
         <Button
           onClick={() => {
-            document
-              .querySelectorAll<HTMLSpanElement>(
-                "#mmd-render-root > div:nth-child(1) > div:nth-child(5) > div:nth-child(1) > div:nth-child(2) > div:nth-child(1) > span",
+            root
+              .current!.querySelectorAll<HTMLSpanElement>(
+                ":scope > div:nth-child(1) > div:nth-child(5) > div:nth-child(1) > div:nth-child(2) > div:nth-child(1) > span",
               )
               .forEach((e) => {
                 e.style.display = "none";
@@ -128,9 +135,9 @@ function ControlsDrawer(props: {
         </Button>
         <Button
           onClick={() => {
-            document
-              .querySelector<HTMLButtonElement>(
-                "#mmd-render-root > div:nth-child(1) > div:nth-child(5) > div:nth-child(1) > div:nth-child(2) > div:nth-child(2) > button:nth-child(3)",
+            root
+              .current!.querySelector<HTMLButtonElement>(
+                ":scope > div:nth-child(1) > div:nth-child(5) > div:nth-child(1) > div:nth-child(2) > div:nth-child(2) > button:nth-child(3)",
               )
               ?.click();
           }}
@@ -228,7 +235,7 @@ function ControlsDrawer(props: {
         <TextField
           sx={{ minWidth: "150px", background: "white", mt: 1 }}
           variant="outlined"
-          id="model-offset-input"
+          className="model-offset-input"
           label="Model Offset"
           defaultValue={0}
           type="number"
@@ -248,7 +255,6 @@ function ControlsDrawer(props: {
         <TextField
           sx={{ minWidth: "150px", background: "white", mt: 1 }}
           variant="outlined"
-          id="camera-offset-input"
           label="Camera Offset"
           defaultValue={0}
           type="number"

@@ -66,7 +66,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight.js";
 import type { MmdAnimation } from "babylon-mmd/esm/Loader/Animation/mmdAnimation.js";
 import type { MmdModel } from "babylon-mmd/esm/Runtime/mmdModel.js";
 import type { ISceneBuilder } from "./BaseRuntime";
-import { MMDLoadDetails } from "./config";
+import type { MMDPlayer } from "./config";
 
 // import { number } from "zod";
 // import { PointLight } from "@babylonjs/core/Lights/pointLight.js";
@@ -75,10 +75,14 @@ import { MMDLoadDetails } from "./config";
 
 //#region SceneBuilderSplit.tsx
 class SceneBuilderSplit implements ISceneBuilder {
+  public constructor(private readonly _player: MMDPlayer) {}
+
   public async build(
     canvas: HTMLCanvasElement,
     engine: AbstractEngine,
   ): Promise<Scene> {
+    const { MMDLoadDetails } = this._player;
+    const root = this._player.root.current!;
     // for apply SDEF on shadow, outline, depth rendering
     SdefInjector.OverrideEngineCreateEffect(engine);
 
@@ -231,7 +235,7 @@ class SceneBuilderSplit implements ISceneBuilder {
 
     // play before loading. this will cause the audio to play first before all assets are loaded.
     // playing the audio first can help ease the user's patience
-    const tickDiv = document.querySelector<HTMLSpanElement>(
+    const tickDiv = root.querySelector<HTMLSpanElement>(
       ".auto-item-tick-time > span",
     );
     let tickSpaceI = 0;
@@ -402,7 +406,7 @@ class SceneBuilderSplit implements ISceneBuilder {
       }),
     );
     let flightSpeedButton: { innerHTML: string } | Element | null =
-      document.querySelector("button#flight-speed");
+      root.querySelector("button.flight-speed");
     if (!flightSpeedButton) flightSpeedButton = { innerHTML: "" };
     const refUpdate = () => {
       flightSpeedButton.innerHTML = `C:${camera.speed.toFixed(2)} x${audioPlayer.playbackRate.toFixed(3)} z${
@@ -639,8 +643,8 @@ class SceneBuilderSplit implements ISceneBuilder {
 
     // switch camera when right click
     let lastClickTime = -Infinity;
-    const toggleCameraButton = document.querySelector<HTMLButtonElement>(
-      "button#toggle-cameras",
+    const toggleCameraButton = root.querySelector<HTMLButtonElement>(
+      "button.toggle-cameras",
     );
     let cameraID = 0;
     let cameraTypes = [mmdCamera, cameraFly, cameraArc];

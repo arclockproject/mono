@@ -1,7 +1,6 @@
 //#region Imports
 import { Button, Dialog, DialogContent, DialogTitle } from "@mui/material";
 import type { JSX } from "react/jsx-runtime";
-import { MMDUpdatePreview } from "./Mmd";
 
 // import { number } from "zod";
 // import { PointLight } from "@babylonjs/core/Lights/pointLight";
@@ -12,6 +11,7 @@ import { MMDUpdatePreview } from "./Mmd";
 interface SimpleDialogProps {
   open: boolean;
   onClose: () => void;
+  updatePreview: () => void;
 }
 
 function MMDLoadDetailsPreviewDialog(props: SimpleDialogProps): JSX.Element {
@@ -26,7 +26,7 @@ function MMDLoadDetailsPreviewDialog(props: SimpleDialogProps): JSX.Element {
       <DialogTitle>MMDLoadDetailsPreview</DialogTitle>
       <DialogContent sx={{ minWidth: "400px" }}>
         <code
-          id="MMDLoadDetailsPreview"
+          className="mmd-load-details-preview"
           style={{
             display: "flex",
             fontSize: "1rem",
@@ -34,7 +34,7 @@ function MMDLoadDetailsPreviewDialog(props: SimpleDialogProps): JSX.Element {
           }}
         />
         <div style={{ display: "flex" }}>
-          <Button fullWidth onClick={() => MMDUpdatePreview()}>
+          <Button fullWidth onClick={() => props.updatePreview()}>
             Reload
           </Button>
         </div>

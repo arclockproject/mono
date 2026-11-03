@@ -27,4 +27,5 @@
     "webxr"
   ],
   "npm.packageManager": "pnpm",
+  "editor.pasteAs.enabled": false,
 }

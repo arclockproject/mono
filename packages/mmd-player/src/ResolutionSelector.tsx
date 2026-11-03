@@ -9,9 +9,9 @@ import {
   Select,
   Switch,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useId, useState } from "react";
 import type { JSX } from "react/jsx-runtime";
-import { MMDLoadDetails } from "./config";
+import type { MMDPlayer } from "./config";
 import { updateCanvasResolution } from "./Mmd";
 
 //#endregion
@@ -90,7 +90,9 @@ const validResolutions: validResolution[] = [
     ratio: 16 / 9,
   },
 ];
-const ResolutionSelector = (): JSX.Element => {
+const ResolutionSelector = ({ player }: { player: MMDPlayer }): JSX.Element => {
+  const { MMDLoadDetails } = player;
+  const id = useId();
   const [minimizedResolution, setMinimizedResolution] = useState(
     MMDLoadDetails.resolutions.normal,
   );
@@ -109,23 +111,23 @@ const ResolutionSelector = (): JSX.Element => {
         onChange={() => {
           MMDLoadDetails.resolutions.swappedAspectRatio =
             !MMDLoadDetails.resolutions.swappedAspectRatio;
-          updateCanvasResolution();
+          updateCanvasResolution(player);
         }}
       />
       <br />
       <FormControl sx={{ m: 1, minWidth: 250 }}>
-        <InputLabel id="resolution-selector-min-label">
+        <InputLabel id={`${id}-resolution-selector-min-label`}>
           Minimized Resolution
         </InputLabel>
         <Select
-          labelId="resolution-selector-min-label"
-          id="resolution-selector-min"
+          labelId={`${id}-resolution-selector-min-label`}
+          id={`${id}-resolution-selector-min`}
           value={minimizedResolution}
           label="Minimized Resolution"
           onChange={({ target: { value } }) => {
             setMinimizedResolution(value);
             MMDLoadDetails.resolutions.normal = value;
-            updateCanvasResolution();
+            updateCanvasResolution(player);
           }}
         >
           {validResolutions.map((resolution, i) => (
@@ -137,18 +139,18 @@ const ResolutionSelector = (): JSX.Element => {
       </FormControl>
       <br />
       <FormControl sx={{ m: 1, minWidth: 250 }}>
-        <InputLabel id="resolution-selector-max-label">
+        <InputLabel id={`${id}-resolution-selector-max-label`}>
           Fullscreen Resolution
         </InputLabel>
         <Select
-          labelId="resolution-selector-max-label"
-          id="resolution-selector-max"
+          labelId={`${id}-resolution-selector-max-label`}
+          id={`${id}-resolution-selector-max`}
           value={fullscreenResolution}
           label="Fullscreen Resolution"
           onChange={({ target: { value } }) => {
             setFullscreenResolution(value);
             MMDLoadDetails.resolutions.fullscreen = value;
-            updateCanvasResolution();
+            updateCanvasResolution(player);
           }}
         >
           {validResolutions.map((resolution, i) => (

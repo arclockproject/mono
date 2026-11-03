@@ -7,6 +7,7 @@ import type { MmdAnimation } from "babylon-mmd/esm/Loader/Animation/mmdAnimation
 import type { MmdMesh } from "babylon-mmd/esm/Runtime/mmdMesh.js";
 import type { MmdMorphController } from "babylon-mmd/esm/Runtime/mmdMorphController.js";
 import type { MmdRuntime } from "babylon-mmd/esm/Runtime/mmdRuntime.js";
+import type { RefObject } from "react";
 
 //#endregion
 
@@ -55,38 +56,35 @@ type processedDivision = {
   endNameRomaji: string;
 };
 
-const ref: { runtime?: BaseRuntime } = { runtime: undefined };
 //#endregion
 
 /**
- * The live state of the player: what the scene builder and presets have
+ * The live state of one player: what the scene builder and presets have
  * selected and while playing, the running scene. The player's UI reads and
- * writes it directly, so it is shared by the whole page.
+ * writes it directly. Each `MMD` has its own, reachable through its `mmdRef`
+ * (see `MMDHandle`).
  *
- * Changing it before pressing play changes what loads. It is also available
- * as `window.MMDLoadDetails` for debugging.
- *
- * Currently unable to be rendered with SSR or SSG.
+ * Changing it before pressing play changes what loads.
  *
  * @see {@link https://arclockproject.org/docs/mmd-player/component Guide} | {@link https://arclockproject.org/docs/api/mmd-player/component API}
  */
-const MMDLoadDetails = {
+class MMDLoadDetails {
   /** Text from the debug panel's audio field, or the preset's music URL. */
-  music: "",
+  music = "";
   /** URL of the music that plays. */
-  musicRaw: "",
+  musicRaw = "";
   /** URL of the camera motion (`.vmd`). */
-  vmdCamera: "",
+  vmdCamera = "";
   /** URL of the thumbnail image. */
-  thumbnail: "",
+  thumbnail = "";
   /** URL of the stage's folder, ending with `/`. */
-  stageFolder: "",
+  stageFolder = "";
   /** File name of the stage model, inside `stageFolder`. */
-  stagePMX: "",
+  stagePMX = "";
   /** Place characters side by side automatically, instead of using `entitiesOffset`. */
-  offsetCharacters: false,
+  offsetCharacters = false;
   /** The characters, by slot. Each has a model and its motion files. */
-  entities: [] as {
+  entities = [] as {
     /**
      * URLs of the motion (`.vmd`). Expecting a single main motion for body and rest as parts.
      *
@@ -100,11 +98,11 @@ const MMDLoadDetails = {
       /** File name of the character model, inside `folder`. */
       file: string;
     };
-  }[],
+  }[];
   /** Morph controllers of the loaded characters. Set while playing. Used for debugging only. */
-  modelMorph: [] as MmdMorphController[],
+  modelMorph = [] as MmdMorphController[];
   /** The running scene and its parts. Set while playing. */
-  controller: {
+  controller = {
     /** Shifts the motion of the characters and/or camera against the music. Values in frames. */
     frameOffset: {
       model: 0,
@@ -118,40 +116,48 @@ const MMDLoadDetails = {
     shadowGenerator: undefined as ShadowGenerator | undefined,
     directionalLight: undefined as DirectionalLight | undefined,
     hemisphericLight: undefined as HemisphericLight | undefined,
-  },
+  };
   /** Index of the character the controls and camera follow. Read live by player. */
-  focusedModel: 0,
+  focusedModel = 0;
   /** Number of character slots in the scene builder. */
-  maxModelFocus: 5,
+  maxModelFocus = 5;
   /** Use Bullet physics (Ammo.js), which behaves closer to MMD. `false` uses the lighter Havok engine. */
-  useBulletPhysics: true,
+  useBulletPhysics = true;
   /** Add screen-space reflections and other extra rendering effects. */
-  useAdvanceRendering: true,
+  useAdvanceRendering = true;
   /** Which controls to use, set by the start buttons. */
-  startMode: "desktop" as "desktop" | "mobile",
+  startMode = "desktop" as "desktop" | "mobile";
   /** Offset of the camera from the focused character. */
-  zCamOffset: { x: 0, y: 10, z: 0 } as SimpleVector,
+  zCamOffset = { x: 0, y: 10, z: 0 } as SimpleVector;
   /** Position of each character, by slot. */
-  entitiesOffset: [] as SimpleVector[],
+  entitiesOffset = [] as SimpleVector[];
   /** Rotation of each character, by slot. */
-  entitiesAngle: [] as SimpleVector[],
+  entitiesAngle = [] as SimpleVector[];
   /** Loaded motion and model of each character. Set while playing. */
-  entitiesData: [] as [MmdAnimation | undefined, MmdMesh | undefined][],
+  entitiesData = [] as [MmdAnimation | undefined, MmdMesh | undefined][];
   /** Morph weights of each character, by slot and then morph name. */
-  actionMemory: [{}, {}, {}, {}, {}] as {
+  actionMemory = [{}, {}, {}, {}, {}] as {
     [key: string]: number;
-  }[],
+  }[];
   /** Selected render resolutions, as indexes into the resolution list. */
-  resolutions: {
+  resolutions = {
     /** Resolution used in fullscreen. `0` is the screen size. */
     fullscreen: validResolutionsDefaults.fullscreen as number,
     /** Resolution used outside fullscreen. */
     normal: validResolutionsDefaults.normal as number,
     /** Swap width and height, for portrait. */
     swappedAspectRatio: false,
-  },
+  };
   /** Points the camera at `focusedModel`. Does nothing until playing. */
-  refocusModel: (): void => {},
+  refocusModel = (): void => {};
+}
+
+/** One player's state, passed to its child components. */
+type MMDPlayer = {
+  MMDLoadDetails: MMDLoadDetails;
+  /** The player's root element. Look up elements from here, so players don't find each other's. */
+  root: RefObject<HTMLDivElement | null>;
+  runtime?: BaseRuntime;
 };
 
 /**
@@ -201,9 +207,6 @@ type MMDTemplateEntry = {
     [key: string]: number;
   } | null)[];
 };
-//@ts-expect-error
-window.MMDLoadDetails = MMDLoadDetails;
-
 export type {
   SimpleVector,
   mmdDetails,
@@ -211,6 +214,7 @@ export type {
   processingDivision,
   processedDivision,
   MMDTemplateEntry,
+  MMDPlayer,
 };
 
 export {
@@ -218,6 +222,5 @@ export {
   overlay90,
   overlay25,
   validResolutionsDefaults,
-  ref,
   MMDLoadDetails,
 };

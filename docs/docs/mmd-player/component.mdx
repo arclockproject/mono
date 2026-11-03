@@ -1,6 +1,7 @@
 ---
 title: Component
-description: "The MMD player component, with a full working example."
+description: "The MMD Player component, with a full working example."
+sidebar_position: 1
 ---
 
 ## Dependencies {#dependencies}
@@ -15,14 +16,12 @@ If you use Docusaurus, see [Issues](./issues.mdx) for a config fix.
 
 ## Usage {#usage}
 
-Only one `MMD` player can be on a page at a time.
-
 The example below is live. Edit the code to try your own values. It downloads a 3D model,
 motions and music, so it can take a moment to start.
 
 ### Full page player {#full-page-player}
 
-A player with a song, a dancing model and a camera motion.
+A player with music "Melancholy Night", Miku model performing and a single camera motion.
 
 ```tsx
 import MMD from "@arclockproject/mmd-player";
@@ -82,6 +81,15 @@ import FileBrowser from "@arclockproject/common/components/FileBrowser";
   noDebug={false}
 />
 ```
+
+:::info[Debug player state]
+
+Each MMD Player has its own state. To read or change it for debugging purposes,
+pass a ref from `useRef` to the `mmdRef` prop, then use `ref.current.MMDLoadDetails`
+([MMDLoadDetails API reference](/docs/api/mmd-player/component#mmd-load-details)).
+
+:::
+
 
 ## API {#api}
 

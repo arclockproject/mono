@@ -1,5 +1,5 @@
-import { MMDLoadDetails } from "./config";
-import { MMDUpdatePreview } from "./Mmd";
+import type { MMDPlayer } from "./config";
+import { updatePreview } from "./Mmd";
 type fileType =
   | "Character"
   | "Camera Movement"
@@ -22,12 +22,14 @@ const getFileType = (file: string): fileType => {
 };
 
 /**
+ * @param player The player to load the file into.
  * @param file Location either as URL or relative path.
  * @example
- * loadMMDFileByURL("https://example.com/folder/Miku.chara.pmx")
- * loadMMDFileByURL("/folder/Miku.chara.mp3") // Will use current domain
+ * loadMMDFileByURL(player, "https://example.com/folder/Miku.chara.pmx")
+ * loadMMDFileByURL(player, "/folder/Miku.chara.mp3") // Will use current domain
  */
-export function loadMMDFileByURL(file: string): void {
+export function loadMMDFileByURL(player: MMDPlayer, file: string): void {
+  const { MMDLoadDetails } = player;
   const fileType = getFileType(file);
   const path = file.split("/");
   const fullPath = `${file}`;
@@ -96,5 +98,5 @@ export function loadMMDFileByURL(file: string): void {
     case "File":
       return;
   }
-  MMDUpdatePreview();
+  updatePreview(player);
 }

@@ -5,10 +5,10 @@ import { SimpleTreeView } from "@mui/x-tree-view/SimpleTreeView";
 import { TreeItem } from "@mui/x-tree-view/TreeItem";
 import { useState } from "react";
 import type { JSX } from "react/jsx-runtime";
-import {
-  MMDLoadDetails,
-  type mmdDetailsProcessed,
-  type processedDivision,
+import type {
+  MMDPlayer,
+  mmdDetailsProcessed,
+  processedDivision,
 } from "./config";
 
 //#endregion
@@ -112,12 +112,15 @@ function SimpleTreeViewSearchable({
   mmdDetails,
   basePath,
   updatePreview,
+  player,
 }: {
   selectedTab: number;
   mmdDetails: mmdDetailsProcessed | null;
   basePath: string;
   updatePreview: () => void;
+  player: MMDPlayer;
 }): JSX.Element {
+  const { MMDLoadDetails } = player;
   const [search, setSearch] = useState<{ [key: number]: string }>({});
   const searchString = search[selectedTab] ?? "";
   const searchItems = searchString.split(" ");

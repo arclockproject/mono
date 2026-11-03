@@ -1,0 +1,140 @@
+---
+title: "0.1.2 to 1.0.0"
+slug: 1.0.0
+description: "Each MMD Player now has its own state, reached through the new mmdRef prop."
+---
+
+In 1.0.0, several MMD Players can be on one page. Each player now has its own
+state instead of one shared global object, so code outside the player must reach
+that state through a ref.
+
+:::important
+
+If your code only rendered `<MMD … />` and never imported `MMDLoadDetails` or
+`MMDUpdatePreview`, then you don't need to change anything!
+
+:::
+
+## Summary {#summary}
+
+| 0.1.2 | 1.0.0 |
+|---|---|
+| `import { MMDLoadDetails }` | `mmdRef.current.MMDLoadDetails` |
+| `import { MMDUpdatePreview }` | `mmdRef.current.MMDUpdatePreview()` |
+| `window.MMDLoadDetails` | Removed. See [Debugging in the browser console](#console). |
+| `MMDLoadDetails` as a type | Still exported, as a type only. |
+| `BrowserOnly` wrapper | No longer needed. See [Server rendering](#server-rendering). |
+
+## Reaching the player's state {#player-state}
+
+Create a ref with `useRef`, pass it to the player's `mmdRef` prop, then use
+`mmd.current` once the player has mounted. It is `null` before that.
+
+In the example, `playerProps` stands for the props you already pass to `MMD`.
+
+<div className="code-compare">
+
+```tsx title="Before (0.1.2)"
+import MMD, {
+  // removed-start
+  MMDLoadDetails,
+  MMDUpdatePreview,
+  // removed-end
+} from "@arclockproject/mmd-player";
+
+function Player() {
+  const focusSecond = () => {
+    // removed-start
+    MMDLoadDetails.focusedModel = 1;
+    MMDUpdatePreview();
+    // removed-end
+  };
+  return (
+    <>
+      {/* removed-next-line */}
+      <MMD {...playerProps} />
+      <button onClick={focusSecond}>
+        Focus 2nd
+      </button>
+    </>
+  );
+}
+```
+
+```tsx title="After (1.0.0)"
+import MMD, {
+  // added-next-line
+  type MMDHandle,
+} from "@arclockproject/mmd-player";
+// added-next-line
+import { useRef } from "react";
+
+function Player() {
+  // added-next-line
+  const mmd = useRef<MMDHandle>(null);
+  const focusSecond = () => {
+    // added-start
+    const player = mmd.current;
+    if (!player) return;
+    player.MMDLoadDetails.focusedModel = 1;
+    player.MMDUpdatePreview();
+    // added-end
+  };
+  return (
+    <>
+      {/* added-next-line */}
+      <MMD mmdRef={mmd} {...playerProps} />
+      <button onClick={focusSecond}>
+        Focus 2nd
+      </button>
+    </>
+  );
+}
+```
+
+</div>
+
+## Debugging in the browser console {#console}
+
+`window.MMDLoadDetails` was removed due to conflicts when running multiple players.
+To get it back for one player, set it yourself:
+
+```tsx
+const mmd = useRef<MMDHandle>(null);
+useEffect(() => {
+  // added-start
+  // @ts-expect-error MMDLoadDetails isn't declared on window.
+  window.MMDLoadDetails = mmd.current?.MMDLoadDetails;
+  // added-end
+}, []);
+```
+
+## Types {#types}
+
+`MMDLoadDetails` is still exported, but only as a type:
+
+```tsx
+import type { MMDHandle, MMDLoadDetails } from "@arclockproject/mmd-player";
+```
+
+`MMDHandle` is new. It is the type of what `mmdRef` points to.
+
+## Server rendering {#server-rendering}
+
+0.1.2 set `window.MMDLoadDetails` when it was imported, so it had to be kept
+out of server rendering with a wrapper such as Docusaurus's `BrowserOnly`. 1.0.0
+no longer does this, so you can import and render `MMD` directly and remove the
+wrapper.
+
+The [Docusaurus config fix](../issues.mdx#fix-for-docusaurus) is still needed.
+
+## Other changes {#other-changes}
+
+- **Element ids:** the player no longer uses fixed ids such as `#mmd-render` or
+  `#mmd-render-root`. If your code or CSS selected the player's elements by id,
+  it no longer finds them. Those are now CSS class names (except the root element)
+- **Morph Save/Load:** each player has its own saved morphs. In 0.1.2 the slot
+  was shared through `window.toggler`.
+- **Keyboard:** key presses inside the player now also reach the rest of the
+  page. In 0.1.2 the player stopped them, which also blocked typing in its own
+  text fields.
