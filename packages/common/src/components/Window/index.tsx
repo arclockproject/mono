@@ -126,6 +126,9 @@ export default function Window(
             borderTopLeftRadius: "16px",
             borderTopRightRadius: "16px",
             cursor: "move",
+            // Stops the browser from scrolling or zooming while dragging by touch.
+            // React's onTouchStart is passive, so preventDefault() can't do it there.
+            touchAction: "none",
           }}
           onContextMenu={props.onContextMenu}
           onMouseDown={(initialEvent) => {
@@ -164,12 +167,9 @@ export default function Window(
             document.addEventListener("mouseup", mouseup);
           }}
           onTouchStart={(initialEvent) => {
-            initialEvent.preventDefault();
-            initialEvent.stopPropagation();
             const windowHolder = (
               initialEvent.currentTarget.parentElement as HTMLDivElement
             ).parentElement as HTMLDivElement;
-            console.log(initialEvent.nativeEvent.touches);
             const offsetY =
               initialEvent.nativeEvent.touches[0]!.clientY -
               windowHolder.offsetTop;
@@ -202,9 +202,13 @@ export default function Window(
             const mouseup = () => {
               document.removeEventListener("touchmove", mousemove);
               document.removeEventListener("touchend", mouseup);
+              document.removeEventListener("touchcancel", mouseup);
             };
-            document.addEventListener("touchmove", mousemove);
+            document.addEventListener("touchmove", mousemove, {
+              passive: false,
+            });
             document.addEventListener("touchend", mouseup);
+            document.addEventListener("touchcancel", mouseup);
           }}
         >
           <Typography sx={{ flex: 1 }}>{props.title}</Typography>
