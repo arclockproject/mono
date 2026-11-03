@@ -29,3 +29,28 @@
   --ifm-background-color: #181920;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+.code-line-added,
+.code-line-removed {
+  display: block;
+  margin: 0 calc(-1 * var(--ifm-pre-padding));
+  padding: 0 var(--ifm-pre-padding);
+  border-left: 3px solid;
+}
+.code-line-added {
+  background-color: rgba(46, 160, 67, 0.15);
+  border-left-color: #2ea043;
+}
+.code-line-removed {
+  background-color: rgba(248, 81, 73, 0.15);
+  border-left-color: #f85149;
+}
+
+.code-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 0 1rem;
+}
+.code-compare > * {
+  min-width: 0;
+}

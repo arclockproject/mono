@@ -1,6 +1,7 @@
 ---
 title: Issues
 description: "Known problems and how to fix them."
+sidebar_position: 2
 ---
 
 import Tabs from "@theme/Tabs";
@@ -8,12 +9,13 @@ import TabItem from "@theme/TabItem";
 
 ## Fix for Docusaurus
 
-```tsx line={6-16} title="docusaurus.config.ts"
+```tsx title="docusaurus.config.ts"
 ...
 const config: Config = {
   ...
   plugins: [
     ...
+    // highlight-start
     async function MMDDocusaurusFix(context, options) {
       return {
         name: "mmd-docusaurus-fix",
@@ -25,6 +27,7 @@ const config: Config = {
         }),
       };
     },
+    // highlight-end
     ...
   ],
   ...
@@ -33,7 +36,12 @@ const config: Config = {
 export default config;
 ```
 
-Then ensure it does not run server-side
+<details>
+<summary>Versions before 1.0.0: render only in the browser</summary>
+
+Before 1.0.0, the player set `window.MMDLoadDetails` on import, so it failed during
+server rendering and had to be wrapped to run only in the browser. In Docusaurus, use:
+
 
 <Tabs groupId="language">
   <TabItem value="tsx" label="TypeScript" default>
@@ -72,3 +80,5 @@ export function MMD(props) {
 
   </TabItem>
 </Tabs>
+
+</details>

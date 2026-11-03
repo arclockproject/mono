@@ -1,0 +1,9 @@
+{
+  "label": "Migration",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "slug": "/mmd-player/migrate",
+    "description": "How to upgrade between major versions."
+  }
+}

@@ -190,6 +190,23 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
+      magicComments: [
+        {
+          className: "theme-code-block-highlighted-line",
+          line: "highlight-next-line",
+          block: { start: "highlight-start", end: "highlight-end" },
+        },
+        {
+          className: "code-line-added",
+          line: "added-next-line",
+          block: { start: "added-start", end: "added-end" },
+        },
+        {
+          className: "code-line-removed",
+          line: "removed-next-line",
+          block: { start: "removed-start", end: "removed-end" },
+        },
+      ],
     },
   } satisfies Preset.ThemeConfig,
 };
