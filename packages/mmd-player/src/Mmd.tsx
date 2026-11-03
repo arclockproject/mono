@@ -437,14 +437,6 @@ function Mmd(props: {
           position: "relative",
           overflow: "hidden",
         }}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          event.preventDefault();
-        }}
-        onScroll={(event) => {
-          event.stopPropagation();
-          event.preventDefault();
-        }}
       >
         <canvas
           className="mmd-render"
