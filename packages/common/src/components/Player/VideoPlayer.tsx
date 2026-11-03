@@ -84,6 +84,9 @@ const ERROR_RANGE_SECONDS_MESSAGE = 0.25;
 // var lastClick = 0;
 let lastKnownY = 0;
 
+let fullscreenOwner: symbol | null = null;
+let activePlayer: symbol | null = null;
+
 const ThemedTooltip = styled(({ className, ...props }: TooltipProps) => (
   <Tooltip {...props} arrow classes={{ popper: className }} />
 ))(({ theme }) => ({
@@ -143,6 +146,7 @@ function VideoPlayer<metaType, listMetaType>(props: {
   showInlineTitle?: boolean;
 }): JSX.Element {
   const context = usePlayer<metaType, listMetaType>();
+  const [playerId] = useState(() => Symbol("VideoPlayer"));
   const [fullscreen, setFullscreen] = useState(false);
   const [hideControls, setHideControls] = useState(false);
   const [taikoMode, setTaikoMode] = useState(false);
@@ -202,11 +206,9 @@ function VideoPlayer<metaType, listMetaType>(props: {
   }, [props.isPlaylist]);
   useEffect(() => {
     const fullScreenChanger = () => {
-      if (document.fullscreenElement) {
-        setFullscreen(true);
-      } else {
-        setFullscreen(false);
-      }
+      setFullscreen(
+        document.fullscreenElement !== null && fullscreenOwner === playerId,
+      );
     };
 
     document.addEventListener("fullscreenchange", fullScreenChanger);
@@ -276,9 +278,24 @@ function VideoPlayer<metaType, listMetaType>(props: {
       );
     }
   };
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      fullscreenOwner = playerId;
+      await document.body.requestFullscreen();
+    }
+  };
+  useEffect(() => {
+    if (context.internal.playing.value) activePlayer = playerId;
+  }, [context.internal.playing.value]);
   useEffect(() => {
     const onOrientationChange = () => {
       if (screen.orientation.type.match(/\w+/)?.[0] === "landscape") {
+        // On rotate, if non are active, first one gets the fullscreen.
+        if (activePlayer === null) activePlayer = playerId;
+        if (activePlayer !== playerId) return;
+        fullscreenOwner = playerId;
         void document.body.requestFullscreen();
       } else {
         void document.exitFullscreen();
@@ -287,8 +304,9 @@ function VideoPlayer<metaType, listMetaType>(props: {
     screen.orientation.addEventListener("change", onOrientationChange);
     return () => {
       screen.orientation.removeEventListener("change", onOrientationChange);
+      if (activePlayer === playerId) activePlayer = null;
     };
-  }, [context.internal.playing.value]);
+  }, []);
   const subtitleSync = (isSubtitlesEnabledParam: boolean) => {
     if (isSubtitlesEnabledParam) {
       if (!context.internal.playerData.value?.files.subtitles) return;
@@ -804,10 +822,7 @@ function VideoPlayer<metaType, listMetaType>(props: {
                     style={{ height: "100%", width: "50%" }}
                     onClick={createDoubleClickListener(
                       () => generalClick(false),
-                      () =>
-                        document
-                          .exitFullscreen()
-                          .catch(() => document.body.requestFullscreen()),
+                      () => void toggleFullscreen(),
                       1,
                     )}
                   >
@@ -1286,13 +1301,7 @@ function VideoPlayer<metaType, listMetaType>(props: {
                     ) : undefined}
                     <IconButton
                       style={{ color: "white" }}
-                      onClick={async () => {
-                        try {
-                          await document.exitFullscreen();
-                        } catch {
-                          await document.body.requestFullscreen();
-                        }
-                      }}
+                      onClick={toggleFullscreen}
                     >
                       {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                     </IconButton>
@@ -1473,13 +1482,7 @@ function VideoPlayer<metaType, listMetaType>(props: {
           <hr style={{ width: "100%" }} />
           <Button
             startIcon={fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-            onClick={async () => {
-              try {
-                await document.exitFullscreen();
-              } catch {
-                await document.body.requestFullscreen();
-              }
-            }}
+            onClick={toggleFullscreen}
             sx={{ justifyContent: "left" }}
           >
             Toggle Fullscreen
