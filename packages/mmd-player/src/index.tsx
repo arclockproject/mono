@@ -1,10 +1,10 @@
 "use client";
 
-import { MMDLoadDetails, type MMDTemplateEntry } from "./config";
-import { MMDUpdatePreview, Mmd } from "./Mmd";
+import type { MMDLoadDetails, MMDTemplateEntry } from "./config";
+import { type MMDHandle, Mmd } from "./Mmd";
 
-export type { MMDTemplateEntry };
+export type { MMDTemplateEntry, MMDHandle, MMDLoadDetails };
 
-export { Mmd as MMD, MMDUpdatePreview, MMDLoadDetails };
+export { Mmd as MMD };
 
 export default Mmd;

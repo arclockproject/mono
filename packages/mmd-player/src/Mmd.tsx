@@ -1,23 +1,24 @@
 //#region Imports
 
 import { Engine } from "@babylonjs/core/Engines/engine.js";
+import { AppBar, Box, Button, Tab, Tabs, Typography } from "@mui/material";
 import {
-  AppBar,
-  Box,
-  Button,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
-} from "@mui/material";
-import InputAdornment from "@mui/material/InputAdornment";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import type { JSX } from "react/jsx-runtime";
 import { toRomaji } from "wanakana";
 import { BaseRuntime } from "./BaseRuntime";
 import { ControlsDrawer } from "./ControlsDrawer";
 import {
-  MMDLoadDetails,
+  type MMDLoadDetails,
+  MMDLoadDetails as MMDLoadDetailsClass,
+  type MMDPlayer,
   type MMDTemplateEntry,
   type mmdDetails,
   type mmdDetailsProcessed,
@@ -26,7 +27,6 @@ import {
   overlay90,
   type processedDivision,
   type processingDivision,
-  ref,
 } from "./config";
 import { ExplainControlsButton } from "./ExplainControlsButton";
 import { MMDLoadDetailsPreviewDialog } from "./MMDLoadDetailsPreviewDialog";
@@ -42,23 +42,22 @@ import { loadMMDFileByURL } from "./loadFile";
 //#endregion
 
 //#region Mmd.tsx
-const updateCanvasResolution = (): void => {
+const updateCanvasResolution = ({ MMDLoadDetails, root }: MMDPlayer): void => {
+  const rootElement = root.current;
   const canvas =
-    document.querySelector<HTMLCanvasElement>("canvas#mmd-render")!;
+    rootElement?.querySelector<HTMLCanvasElement>("canvas.mmd-render");
+  if (!rootElement || !canvas) return;
   const resolution =
     validResolutions[
-      document.fullscreenElement
+      rootElement.contains(document.fullscreenElement)
         ? MMDLoadDetails.resolutions.fullscreen
         : MMDLoadDetails.resolutions.normal
     ]!;
-  const rootElement = document.getElementById("mmd-render-root");
-  if (rootElement) {
-    rootElement.style.aspectRatio =
-      MMDLoadDetails.resolutions.swappedAspectRatio &&
-      typeof resolution.ratio === "number"
-        ? `${1 / resolution.ratio}`
-        : `${resolution.ratio}`;
-  }
+  rootElement.style.aspectRatio =
+    MMDLoadDetails.resolutions.swappedAspectRatio &&
+    typeof resolution.ratio === "number"
+      ? `${1 / resolution.ratio}`
+      : `${resolution.ratio}`;
   if (MMDLoadDetails.resolutions.swappedAspectRatio) {
     canvas.width = resolution.height();
     canvas.height = resolution.width();
@@ -68,19 +67,15 @@ const updateCanvasResolution = (): void => {
   }
 };
 /**
- * Writes the current scene in `MMDLoadDetails` as `MMDTemplateEntry` JSON into
- * the player's "MMDLoadDetailsPreview" dialog, so it can be copied into
- * `presets`. The player calls this itself whenever it requires.
- *
- * Only call it while `MMD` is mounted, since it writes to the player's element.
- *
- * Generally only used by internal midware components and not end consumers.
- *
- * @see {@link https://arclockproject.org/docs/mmd-player/component Guide} | {@link https://arclockproject.org/docs/api/mmd-player/component API}
+ * Writes the player's scene as `MMDTemplateEntry` JSON into its debug dialog,
+ * so it can be copied into `presets`. Does nothing while the player isn't mounted.
  */
-const MMDUpdatePreview = (): void => {
-  document.querySelector<HTMLDivElement>("#MMDLoadDetailsPreview")!.innerText =
-    JSON.stringify(
+const updatePreview = ({ MMDLoadDetails, root }: MMDPlayer): void => {
+  const preview = root.current?.querySelector<HTMLElement>(
+    ".mmd-load-details-preview",
+  );
+  if (preview)
+    preview.innerText = JSON.stringify(
       {
         title: "Untitled",
         subTitle: "(Unnamed Cover)",
@@ -224,17 +219,40 @@ type rawMMDDetails = {
 type returnPromiseMaybe<k> = (() => k) | (() => Promise<k>);
 
 /**
+ * What `MMD`'s `mmdRef` points to: that player's state, and a way to refresh its
+ * debug preview.
+ *
+ * @see {@link https://arclockproject.org/docs/mmd-player/component Guide} | {@link https://arclockproject.org/docs/api/mmd-player/component API}
+ * @example
+ * const mmd = useRef<MMDHandle>(null);
+ * // <MMD mmdRef={mmd} basePathMMD="/mmd" … />
+ * mmd.current?.MMDLoadDetails.focusedModel; // 0
+ */
+type MMDHandle = {
+  /** This player's live state. */
+  MMDLoadDetails: MMDLoadDetails;
+  /**
+   * Writes this player's scene as `MMDTemplateEntry` JSON into its debug
+   * dialog, so it can be copied into `presets` manually. The player calls
+   * this itself when its scene changes, so you only need it after changing
+   * `MMDLoadDetails` yourself.
+   */
+  MMDUpdatePreview: () => void;
+};
+
+/**
  * A full MMD (MikuMikuDance) player, built on Babylon.js. Its start screen
  * lets users pick a preset, build a scene from your files, or browse them.
  * It then loads the characters, motions, camera, stage and music, and plays
  * them in 3D, with controls for desktop and mobile.
  *
- * Browser only. Only one player can be on a page, since it uses fixed element
- * ids and the shared `MMDLoadDetails` state.
+ * Browser only. Each player has its own state obtainable with `mmdRef`.
  *
  * @see {@link https://arclockproject.org/docs/mmd-player/component Guide} | {@link https://arclockproject.org/docs/api/mmd-player/component API}
  * @example
+ * const mmd = useRef<MMDHandle>(null); // mmd.current?.MMDLoadDetails
  * <MMD
+ *   mmdRef={mmd}
  *   basePathMMD="/mmd"
  *   rawMMDDetails={() => fetch("/mmd/files.json").then((r) => r.json())}
  *   presets={() => []}
@@ -242,6 +260,10 @@ type returnPromiseMaybe<k> = (() => k) | (() => Promise<k>);
  * />
  */
 function Mmd(props: {
+  /**
+   * Gets this player's state and preview, e.g. `mmd.current.MMDLoadDetails`.
+   */
+  mmdRef?: Ref<MMDHandle>;
   /** Largest width of the player, as a CSS value. */
   maxWidth?: string | number;
   /** Largest height of the player, as a CSS value. */
@@ -272,7 +294,7 @@ function Mmd(props: {
     /** The `basePathMMD` prop as reference. */
     base: string;
     /** Loads a clicked file into the scene, picking its role from the file name. */
-    customAction?: typeof loadMMDFileByURL;
+    customAction?: (file: string) => void;
   }) => ReactNode;
   /**
    * Base prefix path. Expecting all mmd files to sit at this location.
@@ -292,6 +314,25 @@ function Mmd(props: {
    */
   loadAudioMeta: (value: string) => [string, string];
 }): JSX.Element {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const styleID = useId();
+  const [player] = useState(
+    (): MMDPlayer => ({
+      MMDLoadDetails: new MMDLoadDetailsClass(),
+      root: rootRef,
+    }),
+  );
+  const { MMDLoadDetails } = player;
+  const MMDUpdatePreview = () => updatePreview(player);
+  const [onFullscreenChange] = useState(
+    () => () => updateCanvasResolution(player),
+  );
+
+  useImperativeHandle(
+    props.mmdRef,
+    () => ({ MMDLoadDetails, MMDUpdatePreview: () => updatePreview(player) }),
+    [player],
+  );
   const presets = useRef<MMDTemplateEntry[]>([]);
 
   useEffect(() => {
@@ -332,7 +373,7 @@ function Mmd(props: {
   useEffect(() => {
     if (!ready) return;
     const canvas =
-      document.querySelector<HTMLCanvasElement>("canvas#mmd-render")!;
+      rootRef.current!.querySelector<HTMLCanvasElement>("canvas.mmd-render")!;
     const engine = new Engine(
       canvas,
       false,
@@ -353,16 +394,16 @@ function Mmd(props: {
     BaseRuntime.Create({
       canvas,
       engine,
-      sceneBuilder: new SceneBuilderSplit(),
+      sceneBuilder: new SceneBuilderSplit(player),
     }).then((runtime) => {
-      ref.runtime = runtime;
+      player.runtime = runtime;
       runtime.run();
     });
-    updateCanvasResolution();
-    document.addEventListener("fullscreenchange", updateCanvasResolution);
+    onFullscreenChange();
+    document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => {
-      document.removeEventListener("fullscreenchange", updateCanvasResolution);
-      ref.runtime?.dispose();
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      player.runtime?.dispose();
     };
   }, [ready]);
   const resolution = validResolutions[MMDLoadDetails.resolutions.normal]!;
@@ -386,7 +427,7 @@ function Mmd(props: {
     >
       <div
         role="application"
-        id="mmd-render-root"
+        ref={rootRef}
         style={{
           width: "100%",
           backgroundColor: "green",
@@ -406,7 +447,7 @@ function Mmd(props: {
         }}
       >
         <canvas
-          id="mmd-render"
+          className="mmd-render"
           width={width} // width="1280px"
           height={height} // height="720px"
           style={{
@@ -421,12 +462,20 @@ function Mmd(props: {
         />
         <div style={{ display: ready ? undefined : "none" }}>
           <div style={{ position: "absolute", left: 0, top: 0, zIndex: 100 }}>
-            <button type="button" id="flight-speed" style={{ padding: "2px" }}>
+            <button
+              type="button"
+              className="flight-speed"
+              style={{ padding: "2px" }}
+            >
               Speed: unknown
             </button>
           </div>
-          <ControlsDrawer ready={ready} toggleMobile={() => {}} />
-          <MorphDrawer ready={ready} mobile={true} />
+          <ControlsDrawer
+            ready={ready}
+            toggleMobile={() => {}}
+            player={player}
+          />
+          <MorphDrawer ready={ready} mobile={true} player={player} />
           <ExplainControlsButton />
           <div
             style={{
@@ -443,9 +492,9 @@ function Mmd(props: {
               onClick={() => {
                 document.removeEventListener(
                   "fullscreenchange",
-                  updateCanvasResolution,
+                  onFullscreenChange,
                 );
-                ref.runtime?.dispose();
+                player.runtime?.dispose();
                 setReady(false);
               }}
               sx={{ m: 1, width: "100%" }}
@@ -506,7 +555,7 @@ function Mmd(props: {
                   marginTop: "8px",
                 }}
               >
-                <ResolutionSelector />
+                <ResolutionSelector player={player} />
                 <div>
                   <button
                     type="button"
@@ -650,8 +699,8 @@ function Mmd(props: {
                             JSON.stringify(preset.actionMemory),
                           );
                         else MMDLoadDetails.actionMemory = [];
-                        document.querySelector<HTMLInputElement>(
-                          "#model-offset-input",
+                        rootRef.current!.querySelector<HTMLInputElement>(
+                          ".model-offset-input input",
                         )!.value =
                           `${MMDLoadDetails.controller.frameOffset.model}`;
                         MMDUpdatePreview();
@@ -707,7 +756,7 @@ function Mmd(props: {
                   <p style={{ textAlign: "center" }}>AUDIO</p>
                   <input
                     type="text"
-                    id="musicInput"
+                    className="music-input"
                     style={{ padding: "8px" }}
                   />
                   <button
@@ -715,8 +764,8 @@ function Mmd(props: {
                     style={{ padding: "8px" }}
                     onClick={() => {
                       const value =
-                        document.querySelector<HTMLInputElement>(
-                          "input#musicInput",
+                        rootRef.current!.querySelector<HTMLInputElement>(
+                          "input.music-input",
                         )!.value;
                       MMDLoadDetails.music = value;
                       const [audio, image] = props.loadAudioMeta(value);
@@ -797,11 +846,11 @@ function Mmd(props: {
                       setSelectedTab(newValue);
                     }}
                   >
-                    <Tab label="Chara" id="tab-1" />
-                    <Tab label="Stage" id="tab-2" />
-                    <Tab label="Dance" id="tab-3" />
-                    <Tab label="Cam" id="tab-4" />
-                    <Tab label="Parts" id="tab-5" />
+                    <Tab label="Chara" id={`${styleID}-tab-1`} />
+                    <Tab label="Stage" id={`${styleID}-tab-2`} />
+                    <Tab label="Dance" id={`${styleID}-tab-3`} />
+                    <Tab label="Cam" id={`${styleID}-tab-4`} />
+                    <Tab label="Parts" id={`${styleID}-tab-5`} />
                   </Tabs>
                 </Box>
                 <Box
@@ -822,6 +871,7 @@ function Mmd(props: {
                     basePath={props.basePathMMD}
                     updatePreview={MMDUpdatePreview}
                     selectedTab={selectedTab}
+                    player={player}
                   />
                 </Box>
               </Box>
@@ -857,7 +907,7 @@ function Mmd(props: {
                   props.getFileBrowser({
                     fileSystemRaw: mmdDetailsRaw?.all ?? [],
                     base: props.basePathMMD,
-                    customAction: loadMMDFileByURL,
+                    customAction: (file) => loadMMDFileByURL(player, file),
                   })
                 ) : (
                   <p>
@@ -923,6 +973,7 @@ function Mmd(props: {
         <MMDLoadDetailsPreviewDialog
           onClose={() => setMMDLoadDetailsPreviewShow(false)}
           open={MMDLoadDetailsPreviewShow}
+          updatePreview={MMDUpdatePreview}
         />
       </div>
     </div>
@@ -930,4 +981,6 @@ function Mmd(props: {
 }
 //#endregion
 
-export { MMDUpdatePreview, Mmd, updateCanvasResolution };
+export type { MMDHandle };
+
+export { updatePreview, Mmd, updateCanvasResolution };

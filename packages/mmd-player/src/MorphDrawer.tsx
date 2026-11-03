@@ -3,10 +3,11 @@
 import { Box, Button, Typography } from "@mui/material";
 import Slider from "@mui/material/Slider";
 import { useTheme } from "@mui/material/styles";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { JSX } from "react/jsx-runtime";
 import {
-  MMDLoadDetails,
+  type MMDLoadDetails,
+  type MMDPlayer,
   overlay75,
   overlay90,
   type SimpleVector,
@@ -182,7 +183,9 @@ function MorphEntry(props: {
   morph: string;
   mobile: boolean;
   targetAll: boolean;
+  player: MMDPlayer;
 }) {
+  const { MMDLoadDetails } = props.player;
   const [mode, setMode] = useState(false);
   const [current, setCurrent] = useState(() => {
     return (
@@ -328,6 +331,7 @@ function MorphEntry(props: {
   );
 }
 const causeAngle = (
+  MMDLoadDetails: MMDLoadDetails,
   vector: SimpleVector,
   all: boolean,
   clear: boolean = false,
@@ -385,6 +389,7 @@ const causeAngle = (
   }
 };
 const causeOffset = (
+  MMDLoadDetails: MMDLoadDetails,
   vector: SimpleVector,
   all: boolean,
   clear: boolean = false,
@@ -445,7 +450,16 @@ const causeOffset = (
 type modes = "morph" | "move";
 const causeRateOffset = 0.25;
 const causeRateAngle = 0.025;
-function MorphDrawer(props: { ready: boolean; mobile: boolean }): JSX.Element {
+function MorphDrawer(props: {
+  ready: boolean;
+  mobile: boolean;
+  player: MMDPlayer;
+}): JSX.Element {
+  const { MMDLoadDetails } = props.player;
+  const toggler = useRef<
+    | typeof MMDLoadDetails.actionMemory
+    | (typeof MMDLoadDetails.actionMemory)[number]
+  >(null);
   const [isHidden, setHidden] = useState(true);
   const [bgVisible, setBgVisible] = useState(true);
   const [all, setAll] = useState(false);
@@ -453,7 +467,13 @@ function MorphDrawer(props: { ready: boolean; mobile: boolean }): JSX.Element {
   const theme = useTheme();
   const [mode, setMode] = useState<modes>("morph");
   const [causeType, setCauseType] = useState<"offset" | "angle">("offset");
-  const cause = causeType === "offset" ? causeOffset : causeAngle;
+  const cause = (vector: SimpleVector, all: boolean, clear?: boolean) =>
+    (causeType === "offset" ? causeOffset : causeAngle)(
+      MMDLoadDetails,
+      vector,
+      all,
+      clear,
+    );
   const [causeMultiplier, setCauseMultiplier] = useState(1);
   const causeRate = causeType === "offset" ? causeRateOffset : causeRateAngle;
   return (
@@ -730,6 +750,7 @@ function MorphDrawer(props: { ready: boolean; mobile: boolean }): JSX.Element {
               morph={morph}
               mobile={props.mobile}
               targetAll={all}
+              player={props.player}
             />
           ))}
         {mode === "move" && (
@@ -910,17 +931,16 @@ function MorphDrawer(props: { ready: boolean; mobile: boolean }): JSX.Element {
           }}
           fullWidth
           onClick={() => {
-            //@ts-expect-error
-            if (window?.toggler === undefined) return;
-            MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel] =
-              //@ts-expect-error
-              window.toggler;
+            if (toggler.current === null) return;
+            if (Array.isArray(toggler.current)) {
+              MMDLoadDetails.actionMemory = toggler.current;
+            } else {
+              MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel] =
+                toggler.current;
+            }
           }}
         >
-          {
-            //@ts-expect-error
-            window?.toggler !== undefined ? "Load ???" : `NO DATA`
-          }
+          {toggler.current !== null ? "Load ???" : `NO DATA`}
         </Button>
         <Button
           sx={{
@@ -933,8 +953,7 @@ function MorphDrawer(props: { ready: boolean; mobile: boolean }): JSX.Element {
           fullWidth
           onClick={() => {
             if (all) {
-              //@ts-expect-error
-              window.toggler = MMDLoadDetails.actionMemory.map((e) => {
+              toggler.current = MMDLoadDetails.actionMemory.map((e) => {
                 const copy: typeof e = JSON.parse(JSON.stringify(e));
                 for (const key in e) {
                   if (copy[key] === 0) {
@@ -948,7 +967,7 @@ function MorphDrawer(props: { ready: boolean; mobile: boolean }): JSX.Element {
                 JSON.stringify(
                   MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel],
                 ),
-              );
+              ) as (typeof MMDLoadDetails.actionMemory)[number];
               for (const key in MMDLoadDetails.actionMemory[
                 MMDLoadDetails.focusedModel
               ]) {
@@ -956,8 +975,7 @@ function MorphDrawer(props: { ready: boolean; mobile: boolean }): JSX.Element {
                   delete copy[key];
                 }
               }
-              //@ts-expect-error
-              window.toggler = copy;
+              toggler.current = copy;
             }
           }}
         >

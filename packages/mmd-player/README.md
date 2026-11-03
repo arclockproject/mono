@@ -40,8 +40,6 @@ import MMD from "@arclockproject/mmd-player";
 
 See the [guide](https://arclockproject.org/docs/mmd-player/component) for a full working example with a model, motion, camera and music.
 
-Only one `MMD` player can be on a page at a time.
-
 ## Contributing
 
 Please see [CONTRIBUTING.md](https://github.com/ArcLockProject/mono/blob/dev/CONTRIBUTING.md) for contribution guidelines.
