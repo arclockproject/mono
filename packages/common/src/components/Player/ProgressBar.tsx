@@ -3,6 +3,7 @@
 import Time from "@arclockproject/common/library/Time";
 
 import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material/styles";
 
 import _ from "lodash";
 import type React from "react";
@@ -18,6 +19,21 @@ const DISPLAY_FPS = 24;
 const EDGE_HEAT = 0;
 
 const displayFrameInterval = Math.round(1000 / DISPLAY_FPS);
+const previewStyle: React.CSSProperties = {
+  position: "absolute",
+  background: "rgba(18, 18, 18, 0.92)",
+  borderRadius: "6px",
+  textAlign: "center",
+  width: "max-content",
+  left: "-10000px",
+  right: "-10000px",
+  margin: "auto",
+  padding: "2px 8px",
+  color: "white",
+  fontSize: "12px",
+  lineHeight: "18px",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.4)",
+};
 function ProgressBar(props: {
   main?: boolean;
   current: number;
@@ -31,6 +47,7 @@ function ProgressBar(props: {
   onStartDragging: () => void;
   onEndDragging: (newCurrent: number) => void;
 }): JSX.Element {
+  const theme = useTheme();
   const bar = useRef<HTMLDivElement>(null);
   const timeTextRef = useRef<HTMLDivElement>(null);
   const chapterTextRef = useRef<HTMLDivElement>(null);
@@ -165,7 +182,7 @@ function ProgressBar(props: {
                       clipPath: `polygon(0 ${
                         leftCurveHeightScoped * 100
                       }%,100% 0,100% 100%,0 100%)`,
-                      background: "rgba(168, 168, 168)",
+                      background: "rgba(255, 255, 255, 0.35)",
                     }}
                   />
                 ) : (
@@ -176,7 +193,7 @@ function ProgressBar(props: {
                       clipPath: `polygon(0 0,100% ${
                         leftCurveHeightScoped * 100
                       }%,100% 100%,0 100%)`,
-                      background: "rgba(168, 168, 168)",
+                      background: "rgba(255, 255, 255, 0.35)",
                     }}
                   />
                 )}
@@ -198,7 +215,7 @@ function ProgressBar(props: {
                       clipPath: `polygon(0 ${
                         rightCurveHeightScoped * 100
                       }%,100% 0,100% 100%,0 100%)`,
-                      background: "rgba(168, 168, 168)",
+                      background: "rgba(255, 255, 255, 0.35)",
                     }}
                   />
                 ) : (
@@ -209,7 +226,7 @@ function ProgressBar(props: {
                       clipPath: `polygon(0 0,100% ${
                         rightCurveHeightScoped * 100
                       }%,100% 100%,0 100%)`,
-                      background: "rgba(168, 168, 168)",
+                      background: "rgba(255, 255, 255, 0.35)",
                     }}
                   />
                 )}
@@ -229,10 +246,16 @@ function ProgressBar(props: {
         display: "flex",
         cursor: "pointer",
         "& > div": {
-          height: dragging ? "8px" : "4px",
+          height: dragging ? "6px" : "4px",
         },
         "&:hover > div": {
-          height: "8px",
+          height: "6px",
+        },
+        "& .ProgressKnob": {
+          transform: `translate(-50%, -50%) scale(${dragging ? 1 : 0})`,
+        },
+        "&:hover .ProgressKnob": {
+          transform: "translate(-50%, -50%) scale(1)",
         },
       }}
       onMouseDown={setDraggingTrue}
@@ -289,17 +312,9 @@ function ProgressBar(props: {
               <div
                 ref={timeTextRef}
                 style={{
-                  position: "absolute",
-                  background: "rgba(0, 0, 0, 0.8)",
-                  borderRadius: "16px",
-                  bottom: chapterHover ? "32px" : "4px",
-                  textAlign: "center",
-                  width: "max-content",
-                  left: "-10000px",
-                  right: "-10000px",
-                  margin: "auto",
-                  padding: "0px 8px",
-                  color: "white",
+                  ...previewStyle,
+                  bottom: chapterHover ? "36px" : "10px",
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
                 {parsedTimeHover}
@@ -307,18 +322,13 @@ function ProgressBar(props: {
               <div
                 ref={chapterTextRef}
                 style={{
+                  ...previewStyle,
                   display: chapterHover ? undefined : "none",
-                  position: "absolute",
-                  background: "rgba(0, 0, 0, 0.8)",
-                  borderRadius: "16px",
-                  bottom: "4px",
-                  textAlign: "center",
-                  width: "max-content",
-                  left: "-10000px",
-                  right: "-10000px",
-                  margin: "auto",
-                  padding: "0px 8px",
-                  color: "white",
+                  bottom: "10px",
+                  maxWidth: "240px",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 {chapterHover}
@@ -331,7 +341,8 @@ function ProgressBar(props: {
             position: "absolute",
             top: 0,
             left: 0,
-            background: "rgba(168, 168, 168, 0.25)",
+            background: "rgba(255, 255, 255, 0.2)",
+            borderRadius: "999px",
             height: "100%",
             width: "100%",
           }}
@@ -341,7 +352,8 @@ function ProgressBar(props: {
             position: "absolute",
             top: 0,
             left: 0,
-            background: "rgba(168, 168, 168, 0.8)",
+            background: "rgba(255, 255, 255, 0.4)",
+            borderRadius: "999px",
             height: props.bufferAudio === null ? "100%" : "50%",
             width:
               props.bufferVideo === null
@@ -355,7 +367,8 @@ function ProgressBar(props: {
             position: "absolute",
             bottom: 0,
             left: 0,
-            background: "rgba(168, 168, 168, 0.8)",
+            background: "rgba(255, 255, 255, 0.4)",
+            borderRadius: "999px",
             height: props.bufferVideo === null ? "100%" : "50%",
             width:
               props.bufferAudio === null
@@ -369,7 +382,8 @@ function ProgressBar(props: {
             position: "absolute",
             top: 0,
             left: 0,
-            background: "red",
+            background: theme.palette.primary.main,
+            borderRadius: "999px",
             height: "100%",
             // props.max can be rounded up as it is in seconds causing 1-2 px gap on right side
             width: `${(props.current / props.max) * 100}%`,
@@ -386,7 +400,7 @@ function ProgressBar(props: {
                     position: "absolute",
                     top: 0,
                     left: `${(chapter.start_time / props.max) * 100}%`,
-                    background: "rgba(43, 43, 43, 0.5)",
+                    background: "rgba(0, 0, 0, 0.6)",
                     height: "100%",
                     width: "2px",
                     transition: "width 0.5s ease-out",
@@ -395,6 +409,21 @@ function ProgressBar(props: {
               );
             })
           : undefined}
+        <div
+          className="ProgressKnob"
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: `${Math.min(100, Math.max(0, (props.current / props.max) * 100))}%`,
+            width: "12px",
+            height: "12px",
+            borderRadius: "50%",
+            background: theme.palette.primary.main,
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.6)",
+            pointerEvents: "none",
+            transition: "transform 150ms ease-out, left 0.5s ease-out",
+          }}
+        />
       </div>
     </Box>
   );
