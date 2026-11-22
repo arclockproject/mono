@@ -1,11 +1,27 @@
 "use client";
 
-import type { MMDLoadDetails, MMDTemplateEntry } from "./config";
+import {
+  defaultResolutions,
+  type MMDLoadDetails,
+  type MMDTemplateEntry,
+  type PlayerSize,
+  type Resolution,
+} from "./config";
 import { type MMDHandle, Mmd } from "./Mmd";
 
-export type { MMDTemplateEntry, MMDHandle, MMDLoadDetails };
+export type {
+  MMDTemplateEntry,
+  MMDHandle,
+  MMDLoadDetails,
+  Resolution,
+  PlayerSize,
+};
+
+export { defaultResolutions };
 
 /**
+ * Throws an error that points to the replacement. Kept so old imports fail with a clear message.
+ *
  * @deprecated Removed in 1.0.0. Use mmdRef.current.MMDUpdatePreview() instead.
  * @see https://arclockproject.org/docs/mmd-player/migrate/1.0.0
  */
