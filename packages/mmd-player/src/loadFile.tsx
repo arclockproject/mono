@@ -1,5 +1,6 @@
 import type { MMDPlayer } from "./config";
 import { updatePreview } from "./Mmd";
+
 type fileType =
   | "Character"
   | "Camera Movement"
@@ -8,6 +9,17 @@ type fileType =
   | "Character Part Movement"
   | "Audio"
   | "File";
+/** Whether a motion URL is a partial motion (lip-sync, eyes, …) rather than the main dance. */
+export const isPartMotion = (file: string): boolean =>
+  file.endsWith(".chara.part.vmd");
+
+/** File name without its folder and role suffix: `/a/Miku.chara.pmx` → `Miku`. */
+export const fileLabel = (file: string): string =>
+  (file.split("/").pop() ?? file).replace(
+    /\.(chara\.part|chara|stage|cam)\.(pmx|pmd|vmd)$/,
+    "",
+  );
+
 const getFileType = (file: string): fileType => {
   if (file.endsWith(".chara.pmx")) return "Character";
   if (file.endsWith(".chara.pmd")) return "Character";
@@ -24,16 +36,20 @@ const getFileType = (file: string): fileType => {
 /**
  * @param player The player to load the file into.
  * @param file Location either as URL or relative path.
+ * @param slot Character slot that characters and motions go into.
  * @example
  * loadMMDFileByURL(player, "https://example.com/folder/Miku.chara.pmx")
  * loadMMDFileByURL(player, "/folder/Miku.chara.mp3") // Will use current domain
  */
-export function loadMMDFileByURL(player: MMDPlayer, file: string): void {
+export function loadMMDFileByURL(
+  player: MMDPlayer,
+  file: string,
+  slot = 0,
+): void {
   const { MMDLoadDetails } = player;
   const fileType = getFileType(file);
   const path = file.split("/");
   const fullPath = `${file}`;
-  const button = 0; //Temporary
   switch (fileType) {
     case "Character":
       {
@@ -41,9 +57,9 @@ export function loadMMDFileByURL(player: MMDPlayer, file: string): void {
           file: path.pop() ?? "",
           folder: `${path.join("/")}/`,
         };
-        let entity = MMDLoadDetails.entities[button];
+        let entity = MMDLoadDetails.entities[slot];
         if (!entity) {
-          entity = MMDLoadDetails.entities[button] = {
+          entity = MMDLoadDetails.entities[slot] = {
             model: model,
             movement: undefined,
           };
@@ -61,12 +77,10 @@ export function loadMMDFileByURL(player: MMDPlayer, file: string): void {
       break;
     case "Character Movement":
       {
-        const entity = MMDLoadDetails.entities[button];
+        const entity = MMDLoadDetails.entities[slot];
         if (entity) {
           if (entity.movement) {
-            entity.movement = entity.movement.filter((vmd) =>
-              vmd.startsWith("chara.part.vmd"),
-            );
+            entity.movement = entity.movement.filter(isPartMotion);
             entity.movement.push(fullPath);
           } else {
             entity.movement = [fullPath];
@@ -76,7 +90,7 @@ export function loadMMDFileByURL(player: MMDPlayer, file: string): void {
       break;
     case "Character Part Movement":
       {
-        const entity = MMDLoadDetails.entities[button];
+        const entity = MMDLoadDetails.entities[slot];
         if (entity) {
           if (entity.movement) {
             if (entity.movement.includes(fullPath)) {

@@ -1,0 +1,203 @@
+---
+title: "Firewall"
+description: "Login and permission checks for an Express server, with typed, renameable permissions."
+---
+
+## Dependencies {#dependencies}
+
+This library does not require any dependencies. It is made for [Express](https://expressjs.com)
+servers, and by default keeps the logged-in user with
+[express-session](https://www.npmjs.com/package/express-session):
+
+```bash npm2yarn
+npm install express express-session
+```
+
+It works with both `import` and `require`.
+
+## Usage {#usage}
+
+```tsx
+import Firewall from "@arclockproject/common/library/Firewall";
+```
+
+You give `Firewall` your permissions and the parts that are specific to your app: how to read
+the login form, how to check a password, where a user's permissions are stored, and the pages to
+show. It gives back a login middleware and `protect`, which guards a route with a permission rule.
+
+### Setup {#setup}
+
+```tsx
+import express from "express";
+import session from "express-session";
+import Firewall from "@arclockproject/common/library/Firewall";
+
+const firewall = Firewall(
+  { "*": 0, "posts.read": 1, "posts.edit": 2, "posts.delete": 3 },
+  {
+    getCredentials: (req) => ({
+      username: req.body?.username,
+      password: req.body?.password,
+      apiKey: req.body?.apiKey ?? req.query.apiKey?.toString(),
+    }),
+    authenticate: async ({ username, password, apiKey }) => {
+      const account = await findAccount({ username, apiKey });
+      if (!account) return { status: "not-found" };
+      if (!apiKey && !(await checkPassword(account, password))) return { status: "wrong-password" };
+      return { status: "ok", userID: account.id };
+    },
+    getPermissions: (userID) => loadPermissionIDs(userID),
+    loginPage: (req, res, info) => res.status(401).send(renderLogin(info)),
+    blocked: (req, res, reason) => res.status(403).send(reason),
+    accessDenied: (req, res, next, info) => res.status(403).send(`No access to ${info.path}`),
+  },
+);
+const p = firewall.permissions;
+
+const app = express();
+app.use(express.urlencoded({ extended: false }));
+app.use(session({ secret: process.env.SESSION_SECRET!, resave: false, saveUninitialized: false }));
+app.use(firewall.middleware);
+
+app.get("/posts", firewall.protect({ require: p["posts.read"] }), listPosts);
+app.delete("/posts/:id", firewall.protect({ require: [p["posts.edit"], p["posts.delete"]] }), deletePost);
+app.post("/logout", async (req, res) => {
+  await firewall.logout(req, res);
+  res.redirect("/");
+});
+```
+
+- **`firewall.middleware`** lets logged-in requests through. Other requests are logged in with the
+  credentials they sent, or get `loginPage`. Add it after `express-session` and a body parser, and
+  before the routes it should guard.
+- **`firewall.protect({ require })`** lets a request through only if the user passes the rule.
+  Otherwise it goes to `accessDenied`. It can also run inside your own handler:
+  `await firewall.protect({ require }, req, res, next)`.
+- **`firewall.userID(req)`** gives the logged-in user, and **`firewall.logout(req, res)`** logs
+  them out.
+- Errors thrown in your callbacks go to `next(err)`, so Express's error handler deals with them.
+- Passwords and API keys are never passed to `onFailedLogin`, so they don't end up in your logs.
+
+### Permissions {#permissions}
+
+Permissions are named in code and stored by ID. The names are the keys of the map you pass to
+`Firewall`, and the IDs are what `getPermissions` returns from your database.
+
+Rules are built from `firewall.permissions`, as `p.name` or `p["name"]`, not from strings. That
+way renaming a permission with your editor (e.g. F2 in VS Code) renames every rule that uses it,
+and a misspelled name or a plain number is a type error. Changing an ID only changes what is read
+from storage.
+
+| Rule | Passes if the user |
+|---|---|
+| `p["posts.read"]` | has that permission |
+| `[a, b]` | passes every rule in it (AND) |
+| `{ any: [a, b] }` | passes at least one rule in it (OR) |
+| `{ not: a }` | does not pass `a` |
+
+Rules can be nested, e.g. `{ any: [[p["posts.edit"], p["posts.delete"]], p["site.owner"]] }`.
+`require` can also be a function that gets the permissions: `require: (p) => p["posts.read"]`.
+
+The example below is live. Tick the permissions a user has, and see which rules let them in. It
+uses `firewall.check`, which runs the same check as `protect` without a request.
+
+```tsx live
+function RulePlayground() {
+  const firewall = useMemo(
+    () =>
+      Firewall(
+        { "*": 0, "posts.read": 1, "posts.edit": 2, "posts.delete": 3 },
+        {
+          getCredentials: () => ({}),
+          authenticate: () => ({ status: "not-found" }),
+          getPermissions: () => [],
+          loginPage: () => {},
+          blocked: () => {},
+          accessDenied: () => {},
+        },
+      ),
+    [],
+  );
+  const p = firewall.permissions;
+  const [granted, setGranted] = useState([1]);
+  const toggle = (id) =>
+    setGranted(granted.includes(id) ? granted.filter((g) => g !== id) : [...granted, id]);
+  const rules = [
+    ['p["posts.read"]', p["posts.read"]],
+    ['[p["posts.edit"], p["posts.delete"]]', [p["posts.edit"], p["posts.delete"]]],
+    ['{ any: [p["posts.edit"], p["posts.delete"]] }', { any: [p["posts.edit"], p["posts.delete"]] }],
+    ['{ not: p["posts.edit"] }', { not: p["posts.edit"] }],
+    ['p["*"]', p["*"]],
+  ];
+
+  return (
+    <div>
+      {Object.entries(p).map(([name, id]) => (
+        <label key={name} style={{ marginRight: 12 }}>
+          <input type="checkbox" checked={granted.includes(id)} onChange={() => toggle(id)} /> {name}
+        </label>
+      ))}
+      <table>
+        <tbody>
+          {rules.map(([label, rule]) => (
+            <tr key={label}>
+              <td><code>{label}</code></td>
+              <td>{firewall.check(rule, granted) ? "✅ allowed" : "⛔ denied"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+```
+
+### The wildcard permission {#the-wildcard-permission}
+
+A permission named `"*"` is the wildcard, like an owner account. A user who has it passes every
+rule, including `{ not: … }` rules. Tick `*` above to see it.
+
+- To let admins and the owner in, `require: p["admin"]` is enough. The owner passes anyway.
+- To let only the owner in, use `require: p["*"]`. Nobody else has that permission.
+- A permission map without `"*"` has no wildcard.
+
+### Where the logged-in user is kept {#where-the-logged-in-user-is-kept}
+
+By default the user's ID is kept in `req.session.userID` with `express-session`, so it lasts as
+long as the session does (see its `cookie.maxAge`, `rolling` and `store` settings). On login and
+on logout, a new session is started, so a session ID from before the login can't be reused
+(session fixation). Logout also removes anything else stored in that session.
+
+To keep the user somewhere else, like a signed cookie or a token, pass `session`:
+
+```tsx
+const firewall = Firewall(permissions, {
+  // …
+  session: {
+    get: (req) => verifyToken(req.cookies.token)?.userID,
+    set: (req, res, userID) => {
+      res.cookie("token", signToken({ userID }), { httpOnly: true, secure: true, sameSite: "lax" });
+    },
+    clear: (req, res) => {
+      res.clearCookie("token");
+    },
+  },
+});
+```
+
+`null` and `undefined` both mean nobody is logged in.
+
+### Login attempts {#login-attempts}
+
+Each IP can fail `maxAttempts` logins (3 by default) before it gets `blocked`. A successful login
+resets the count, and so does `attemptsResetAfter` (1 hour by default) passing after the first
+failed login. The counts are kept in memory, so they also reset when the server restarts.
+
+The IP comes from the connection. Behind a proxy, that is the proxy's IP, so every user shares one
+count. Pass a `getIP` that reads the IP your proxy sets, e.g. `(req) => req.ip` in Express with
+`trust proxy` on. Only read `x-forwarded-for` if your proxy overwrites it, because clients can set it
+themselves to get unlimited attempts.
+
+## API {#api}
+
+See the [Firewall API reference](/docs/api/common/library/Firewall) for every prop, method and type.

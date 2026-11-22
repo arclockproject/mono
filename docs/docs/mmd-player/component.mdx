@@ -37,7 +37,7 @@ import FileBrowser from "@arclockproject/common/components/FileBrowser";
     {
       title: "メランコリ・ナイト",
       subTitle: "(Miku Cover)",
-      thumbnail: "",
+      thumbnail: `${REMOTE.base}/jkZ53T1Pu7k.webp`,
       // Audio source: https://youtu.be/y__uZETTuL8
       music: `${REMOTE.noname0310}/motion/melancholy_night/melancholy_night.mp3`,
       // Motion source: https://www.nicovideo.jp/watch/sm41164308
@@ -90,6 +90,48 @@ pass a ref from `useRef` to the `mmdRef` prop, then use `ref.current.MMDLoadDeta
 
 :::
 
+### Custom resolutions {#custom-resolutions}
+
+The resolution menus list `defaultResolutions`. To add your own, pass the list with yours added.
+`width` and `height` get the player's size on screen in CSS pixels; multiply by
+`window.devicePixelRatio` for device pixels.
+
+```tsx
+import MMD, { defaultResolutions, type Resolution } from "@arclockproject/mmd-player";
+
+const eightK: Resolution = { label: "8K", width: () => 7680, height: () => 4320, ratio: 16 / 9 };
+
+<MMD resolutions={[...defaultResolutions, eightK]} /* … */ />;
+```
+
+The default picks are list indexes (0 in fullscreen, 7 otherwise). If your list is shorter, its
+first resolution is used.
+
+### Saving presets {#saving-presets}
+
+With `onSavePreset`, the presets tab shows "Save to current preset" and "Save as new preset". After
+the user confirms the id, title and subtitle, it gets a copy of the scene. Save it where you keep
+your presets and return `true` to update the player's list.
+
+```tsx
+<MMD
+  /* … */
+  onSavePreset={async (preset, isNew) => {
+    const response = await fetch(isNew ? "/presets" : `/presets/${preset.id}`, {
+      method: isNew ? "POST" : "PUT",
+      body: JSON.stringify(preset),
+    });
+    return response.ok;
+  }}
+/>
+```
+
+Checking that a new preset's `id` is unique is up to you.
+
+### Controls {#controls}
+
+Press <kbd>H</kbd> in the player, or the **Controls** button in its top bar, to see every keyboard,
+mouse and touch control. Playback and camera keys only work after clicking the 3D view.
 
 ## API {#api}
 

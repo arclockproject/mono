@@ -1,23 +1,45 @@
 //#region Imports
 
-import { Box, Button, Typography } from "@mui/material";
-import Slider from "@mui/material/Slider";
-import { useTheme } from "@mui/material/styles";
-import { useRef, useState } from "react";
+import CloseIcon from "@mui/icons-material/Close";
+import OpacityIcon from "@mui/icons-material/Opacity";
+import PauseIcon from "@mui/icons-material/Pause";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import {
+  Box,
+  Button,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  Slider,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
+import { useEffect, useReducer, useRef, useState } from "react";
 import type { JSX } from "react/jsx-runtime";
+import { toRomaji } from "wanakana";
 import {
   type MMDLoadDetails,
   type MMDPlayer,
-  overlay75,
-  overlay90,
+  playOrRestart,
   type SimpleVector,
 } from "./config";
+import { SidePanel } from "./SidePanel";
 
 //#endregion
 
 //#region MorphDrawer.tsx
 
-const defaultBodyNames = [
+/**
+ * Standard face morphs most models share. Hidden unless "Face" is ticked, so a
+ * model's own morphs (outfits, extras) are easy to find.
+ */
+const faceMorphs = new Set([
   `まばたき`,
   `笑い`,
   `なごみ`,
@@ -177,834 +199,512 @@ const defaultBodyNames = [
   `ぺろっ1`,
   `ぺろっ2`,
   `小_あご`,
-];
+]);
 
-function MorphEntry(props: {
-  morph: string;
-  mobile: boolean;
-  targetAll: boolean;
-  player: MMDPlayer;
+/** Slots a change applies to: every slot, or only the focused one. */
+const targetSlots = (details: MMDLoadDetails, all: boolean) =>
+  all ? [...Array(details.maxModelFocus).keys()] : [details.focusedModel];
+
+/** Sets a morph on the models and remembers it, so it can be re-applied. */
+const setMorph = (
+  details: MMDLoadDetails,
+  all: boolean,
+  name: string,
+  value: number,
+) => {
+  for (const i of targetSlots(details, all)) {
+    details.modelMorph[i]?.setMorphWeight(name, value);
+    details.actionMemory[i] ??= {};
+    details.actionMemory[i][name] = value;
+  }
+};
+
+/** Applies the remembered weights of `slots` to their models again. */
+const applyMemory = (details: MMDLoadDetails, slots: number[]) => {
+  for (const i of slots)
+    for (const [name, value] of Object.entries(details.actionMemory[i] ?? {}))
+      details.modelMorph[i]?.setMorphWeight(name, value);
+};
+
+/** Sets every remembered morph of `slots` back to 0 and clears memory. */
+const resetMemory = (details: MMDLoadDetails, slots: number[]) => {
+  for (const i of slots) {
+    for (const name in details.actionMemory[i])
+      details.modelMorph[i]?.setMorphWeight(name, 0);
+    details.actionMemory[i] = {};
+  }
+};
+
+const moveEntities = (
+  effect: "angle" | "offset",
+  details: MMDLoadDetails,
+  vector: SimpleVector,
+  all: boolean,
+  clear = false,
+) => {
+  const list =
+    effect === "offset" ? details.entitiesOffset : details.entitiesAngle;
+  const prop = effect === "offset" ? "position" : "rotation";
+  for (const i of targetSlots(details, all)) {
+    const current = list[i];
+    if (clear || !current) list[i] = { ...vector };
+    else {
+      current.x += vector.x;
+      current.y += vector.y;
+      current.z += vector.z;
+    }
+    const v = list[i]!;
+    details.entitiesData[i]?.[1]?.[prop].set(v.x, v.y, v.z);
+  }
+};
+
+/** Distance per press. Multiplied by the "Step" slider. */
+const stepRate = { offset: 0.25, angle: 0.025 };
+/** One row per axis: [axis, label when moving, label when rotating]. */
+const moveRows = [
+  ["y", ["Down", "Up"], "Turn"],
+  ["x", ["Left", "Right"], "Tilt"],
+  ["z", ["Forward", "Back"], "Roll"],
+] as const;
+
+/** Touch-friendly height for every control in the panel. */
+const touch = { minHeight: 48 };
+
+/** One morph: tap the name to switch between 0 and 1, or drag the slider. */
+function MorphRow(props: {
+  name: string;
+  all: boolean;
+  details: MMDLoadDetails;
+  /** Highlighted by the arrow keys in the filter. */
+  active: boolean;
 }) {
-  const { MMDLoadDetails } = props.player;
-  const [mode, setMode] = useState(false);
-  const [current, setCurrent] = useState(() => {
-    return (
-      MMDLoadDetails.modelMorph[MMDLoadDetails.focusedModel]?.getMorphWeight(
-        props.morph,
-      ) ?? 0
-    );
-  });
+  const { details, name } = props;
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (props.active) row.current?.scrollIntoView({ block: "nearest" });
+  }, [props.active]);
+  const [value, setValue] = useState(
+    () => details.modelMorph[details.focusedModel]?.getMorphWeight(name) ?? 0,
+  );
+  const set = (next: number) => {
+    setMorph(details, props.all, name, next);
+    setValue(next);
+  };
   return (
-    <Box>
-      <Box sx={{ display: "flex" }}>
-        <Typography
-          sx={(theme) => ({
-            borderRadius: "99px",
-            background: overlay75,
-            padding: theme.spacing(1),
-          })}
+    <Stack
+      ref={row}
+      direction="row"
+      alignItems="center"
+      spacing={1.5}
+      sx={{ px: 1, bgcolor: props.active ? "action.selected" : undefined }}
+    >
+      <Button
+        color="inherit"
+        title={`${name}: tap for ${value > 0 ? 0 : 1}`}
+        onClick={() => set(value > 0 ? 0 : 1)}
+        sx={{ ...touch, flex: 1, minWidth: 0, justifyContent: "flex-start" }}
+      >
+        <Box
+          component="span"
+          sx={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            textTransform: "none",
+          }}
         >
-          {props.morph}
-        </Typography>
-        <Box sx={{ flex: 1 }} />
-        <Typography
-          sx={(theme) => ({
-            borderRadius: "99px",
-            background: overlay75,
-            padding: theme.spacing(1),
-          })}
-          onClick={() => setMode(!mode)}
-        >
-          ({current})
-        </Typography>
-      </Box>
-      <Box
+          {name}
+        </Box>
+      </Button>
+      <Slider
+        aria-label={name}
+        size="small"
+        value={value}
+        min={0}
+        max={1}
+        step={0.05}
+        onChange={(_, next) => set(next)}
+        sx={{ width: "50%", flexShrink: 0 }}
+      />
+      <Typography
+        variant="body2"
         sx={{
-          display: "flex",
-          gap: "8px",
-          padding: "8px",
-          height: props.mobile ? "48px" : undefined,
+          width: "4ch",
+          textAlign: "right",
+          fontVariantNumeric: "tabular-nums",
         }}
       >
-        {mode ? (
-          <Slider
-            aria-label={`Slider ${props.morph}`}
-            defaultValue={current}
-            min={0}
-            max={1}
-            step={0.1}
-            valueLabelDisplay="auto"
-            onChange={(_event, newValue) => {
-              const val = newValue;
-              if (props.targetAll) {
-                MMDLoadDetails.modelMorph.forEach((model, index) => {
-                  model?.setMorphWeight(props.morph, val);
-                  if (!MMDLoadDetails.actionMemory[index])
-                    MMDLoadDetails.actionMemory[index] = {};
-                  MMDLoadDetails.actionMemory[index][props.morph] = val;
-                });
-              } else {
-                MMDLoadDetails.modelMorph[
-                  MMDLoadDetails.focusedModel
-                ]?.setMorphWeight(props.morph, val);
-                if (!MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel])
-                  MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel] = {};
-                MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel]![
-                  props.morph
-                ] = val;
-              }
-              setCurrent(val);
-            }}
-          />
-        ) : (
-          <>
-            <Button
-              sx={(theme) => ({
-                flex: 1,
-                height: props.mobile ? "100%" : undefined,
-                background:
-                  theme.palette.mode === "light"
-                    ? `rgba(255,255,255, ${(1 - current) * 0.5})`
-                    : `rgba(0,0,0, ${(1 - current) * 0.5})`,
-              })}
-              onClick={() => {
-                if (props.targetAll) {
-                  MMDLoadDetails.modelMorph.forEach((model, index) => {
-                    model?.setMorphWeight(props.morph, 0);
-                    if (!MMDLoadDetails.actionMemory[index])
-                      MMDLoadDetails.actionMemory[index] = {};
-                    MMDLoadDetails.actionMemory[index][props.morph] = 0;
-                  });
-                } else {
-                  MMDLoadDetails.modelMorph[
-                    MMDLoadDetails.focusedModel
-                  ]?.setMorphWeight(props.morph, 0);
-                  if (!MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel])
-                    MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel] =
-                      {};
-                  MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel]![
-                    props.morph
-                  ] = 0;
-                }
-                setCurrent(0);
-              }}
-            >
-              0
-            </Button>
-            <Button
-              sx={(theme) => ({
-                flex: 1,
-                height: props.mobile ? "100%" : undefined,
-                background:
-                  theme.palette.mode === "light"
-                    ? `rgba(255,255,255, ${current * 0.5})`
-                    : `rgba(0,0,0, ${current * 0.5})`,
-              })}
-              onClick={() => {
-                if (props.targetAll) {
-                  MMDLoadDetails.modelMorph.forEach((model, index) => {
-                    model?.setMorphWeight(props.morph, 1);
-                    if (!MMDLoadDetails.actionMemory[index])
-                      MMDLoadDetails.actionMemory[index] = {};
-                    MMDLoadDetails.actionMemory[index][props.morph] = 1;
-                  });
-                } else {
-                  MMDLoadDetails.modelMorph[
-                    MMDLoadDetails.focusedModel
-                  ]?.setMorphWeight(props.morph, 1);
-                  if (!MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel])
-                    MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel] =
-                      {};
-                  MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel]![
-                    props.morph
-                  ] = 1;
-                }
-                setCurrent(1);
-              }}
-            >
-              1
-            </Button>
-          </>
-        )}
-      </Box>
-    </Box>
+        {value.toFixed(2)}
+      </Typography>
+    </Stack>
   );
 }
-const causeAngle = (
-  MMDLoadDetails: MMDLoadDetails,
-  vector: SimpleVector,
-  all: boolean,
-  clear: boolean = false,
-) => {
-  if (clear) {
-    if (all) {
-      for (let i = 0; i < MMDLoadDetails.maxModelFocus; i++) {
-        MMDLoadDetails.entitiesAngle[i] = vector;
-        MMDLoadDetails.entitiesData[i]![1]?.rotation.set(
-          vector.x,
-          vector.y,
-          vector.z,
-        );
-      }
-    } else {
-      MMDLoadDetails.entitiesAngle[MMDLoadDetails.focusedModel] = vector;
-      MMDLoadDetails.entitiesData[
-        MMDLoadDetails.focusedModel
-      ]![1]?.rotation.set(vector.x, vector.y, vector.z);
-    }
-    return;
-  }
-  if (all) {
-    for (let i = 0; i < MMDLoadDetails.maxModelFocus; i++) {
-      let vectorRef = MMDLoadDetails.entitiesAngle[i];
-      if (vectorRef) {
-        vectorRef.x += vector.x;
-        vectorRef.y += vector.y;
-        vectorRef.z += vector.z;
-      } else {
-        MMDLoadDetails.entitiesAngle[i] = vector;
-        vectorRef = vector;
-      }
-      MMDLoadDetails.entitiesData[i]![1]?.rotation.set(
-        vectorRef.x,
-        vectorRef.y,
-        vectorRef.z,
-      );
-    }
-  } else {
-    let vectorRef = MMDLoadDetails.entitiesAngle[MMDLoadDetails.focusedModel];
-    if (vectorRef) {
-      vectorRef.x += vector.x;
-      vectorRef.y += vector.y;
-      vectorRef.z += vector.z;
-    } else {
-      MMDLoadDetails.entitiesAngle[MMDLoadDetails.focusedModel] = vector;
-      vectorRef = vector;
-    }
-    MMDLoadDetails.entitiesData[MMDLoadDetails.focusedModel]![1]?.rotation.set(
-      vectorRef.x,
-      vectorRef.y,
-      vectorRef.z,
-    );
-  }
-};
-const causeOffset = (
-  MMDLoadDetails: MMDLoadDetails,
-  vector: SimpleVector,
-  all: boolean,
-  clear: boolean = false,
-) => {
-  if (clear) {
-    if (all) {
-      for (let i = 0; i < MMDLoadDetails.maxModelFocus; i++) {
-        MMDLoadDetails.entitiesOffset[i] = vector;
-        MMDLoadDetails.entitiesData[i]![1]?.position.set(
-          vector.x,
-          vector.y,
-          vector.z,
-        );
-      }
-    } else {
-      MMDLoadDetails.entitiesOffset[MMDLoadDetails.focusedModel] = vector;
-      MMDLoadDetails.entitiesData[
-        MMDLoadDetails.focusedModel
-      ]![1]?.position.set(vector.x, vector.y, vector.z);
-    }
-    return;
-  }
-  if (all) {
-    for (let i = 0; i < MMDLoadDetails.maxModelFocus; i++) {
-      let vectorRef = MMDLoadDetails.entitiesOffset[i];
-      if (vectorRef) {
-        vectorRef.x += vector.x;
-        vectorRef.y += vector.y;
-        vectorRef.z += vector.z;
-      } else {
-        MMDLoadDetails.entitiesOffset[i] = vector;
-        vectorRef = vector;
-      }
-      MMDLoadDetails.entitiesData[i]![1]?.position.set(
-        vectorRef.x,
-        vectorRef.y,
-        vectorRef.z,
-      );
-    }
-  } else {
-    let vectorRef = MMDLoadDetails.entitiesOffset[MMDLoadDetails.focusedModel];
-    if (vectorRef) {
-      vectorRef.x += vector.x;
-      vectorRef.y += vector.y;
-      vectorRef.z += vector.z;
-    } else {
-      MMDLoadDetails.entitiesOffset[MMDLoadDetails.focusedModel] = vector;
-      vectorRef = vector;
-    }
-    MMDLoadDetails.entitiesData[MMDLoadDetails.focusedModel]![1]?.position.set(
-      vectorRef.x,
-      vectorRef.y,
-      vectorRef.z,
-    );
-  }
-};
 
-type modes = "morph" | "move";
-const causeRateOffset = 0.25;
-const causeRateAngle = 0.025;
+/** The right "Morphs" panel: morph weights, and moving or rotating characters. */
 function MorphDrawer(props: {
   ready: boolean;
-  mobile: boolean;
+  open: boolean;
+  onClose: () => void;
   player: MMDPlayer;
+  /** Bump to show the morph list and focus its filter (the "/" key). */
+  focusFilter?: number;
 }): JSX.Element {
-  const { MMDLoadDetails } = props.player;
-  const toggler = useRef<
-    | typeof MMDLoadDetails.actionMemory
-    | (typeof MMDLoadDetails.actionMemory)[number]
-  >(null);
-  const [isHidden, setHidden] = useState(true);
-  const [bgVisible, setBgVisible] = useState(true);
-  const [all, setAll] = useState(false);
-  const [morphs, setMorphs] = useState<string[]>([]);
-  const theme = useTheme();
-  const [mode, setMode] = useState<modes>("morph");
-  const [causeType, setCauseType] = useState<"offset" | "angle">("offset");
-  const cause = (vector: SimpleVector, all: boolean, clear?: boolean) =>
-    (causeType === "offset" ? causeOffset : causeAngle)(
-      MMDLoadDetails,
-      vector,
-      all,
-      clear,
+  const details = props.player.MMDLoadDetails;
+  const runtime = details.controller.musicRuntime;
+  /** Bump to redraw, and to re-read the weights after bulk changes. */
+  const [revision, redraw] = useReducer((n: number) => n + 1, 0);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!runtime) return;
+    setPlaying(runtime.isAnimationPlaying);
+    const onPlay = runtime.onPlayAnimationObservable.add(() =>
+      setPlaying(true),
     );
-  const [causeMultiplier, setCauseMultiplier] = useState(1);
-  const causeRate = causeType === "offset" ? causeRateOffset : causeRateAngle;
-  return (
-    <Box
-      sx={{
-        display: props.ready ? "flex" : "none",
-        position: "absolute",
-        right: isHidden ? "-600px" : 0,
-        transition: theme.transitions.create(["right"]),
-        top: 0,
-        bottom: 0,
-        margin: "auto",
-        height: "100%",
-        zIndex: 100,
-        width: "100%",
-        maxWidth: "600px",
-        flexDirection: "column",
-        background: bgVisible ? overlay90 : `#00000000`,
-        [theme.breakpoints.down(600)]: {
-          maxWidth: "100%",
-          right: isHidden ? "-100%" : 0,
-        },
-      }}
-    >
-      <Box
-        sx={{
-          position: "relative",
-          left: isHidden ? "-60px" : 0,
-          width: "100%",
-          transition: theme.transitions.create(["left"]),
-          display: "flex",
-          flexDirection: "row",
-        }}
-      >
-        <Button
-          sx={{
-            height: "100%",
-            flex: 2,
-            justifyContent: isHidden ? "left" : undefined,
-          }}
-          variant="contained"
-          color="info"
-          onClick={() => {
-            setHidden(!isHidden);
-          }}
-        >
-          {isHidden ? `<` : "X"}
-        </Button>
-        <Button
-          sx={{ height: "100%", flex: 1 }}
-          variant="contained"
-          color="info"
-          onClick={() => {
-            MMDLoadDetails.controller.musicRuntime?.seekAnimation(
-              Math.max(
-                0,
-                (MMDLoadDetails.controller.musicRuntime?.currentFrameTime ??
-                  0) -
-                  30 * 5,
-              ),
-            );
-          }}
-        >
-          -5
-        </Button>
-        <Button
-          sx={{ height: "100%", flex: 1 }}
-          variant="contained"
-          color="info"
-          onClick={() => {
-            MMDLoadDetails.controller.musicRuntime?.seekAnimation(
-              Math.min(
-                MMDLoadDetails.controller.musicRuntime
-                  ?.animationFrameTimeDuration,
-                (MMDLoadDetails.controller.musicRuntime?.currentFrameTime ??
-                  0) - 30,
-              ),
-            );
-          }}
-        >
-          -1
-        </Button>
-        <Button
-          sx={{ height: "100%", flex: 2 }}
-          variant="contained"
-          color="info"
-          onClick={() => {
-            if (MMDLoadDetails.controller.musicRuntime?.isAnimationPlaying) {
-              MMDLoadDetails.controller.musicRuntime?.pauseAnimation();
-            } else {
-              MMDLoadDetails.controller.musicRuntime?.playAnimation();
-            }
-          }}
-        >
-          Play
-        </Button>
-      </Box>
-      <Box display={"flex"}>
-        <Button
-          sx={{
-            flex: 2,
-            height: props.mobile ? "48px" : undefined,
-            background:
-              theme.palette.mode === "light"
-                ? `rgba(255,255,255, 0.5)`
-                : `rgba(0,0,0, 0.5)`,
-          }}
-          fullWidth
-          onClick={() => {
-            if (all) {
-              for (let i = 0; i < MMDLoadDetails.maxModelFocus; i++) {
-                for (const key in MMDLoadDetails.actionMemory[i]) {
-                  if (MMDLoadDetails.actionMemory[i])
-                    MMDLoadDetails.modelMorph[i]?.setMorphWeight(
-                      key,
-                      MMDLoadDetails.actionMemory[i]![key]!,
-                    );
-                }
-              }
-            } else {
-              for (const key in MMDLoadDetails.actionMemory[
-                MMDLoadDetails.focusedModel
-              ]) {
-                if (MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel])
-                  MMDLoadDetails.modelMorph[
-                    MMDLoadDetails.focusedModel
-                  ]?.setMorphWeight(
-                    key,
-                    MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel]![
-                      key
-                    ]!,
-                  );
-              }
-            }
-          }}
-        >
-          {all ? "Sync All" : `Sync ${MMDLoadDetails.focusedModel}`}
-        </Button>
-        <Button
-          sx={{
-            flex: 2,
-            height: props.mobile ? "48px" : undefined,
-            background:
-              theme.palette.mode === "light"
-                ? `rgba(255,255,255, 0.5)`
-                : `rgba(0,0,0, 0.5)`,
-          }}
-          fullWidth
-          onClick={() => {
-            setMorphs(
-              (
-                MMDLoadDetails.modelMorph[MMDLoadDetails.focusedModel]
-                  ?.morphs ?? []
-              ).map((morph) => morph.name),
-            );
-          }}
-        >
-          {morphs.length}/
-          {
-            MMDLoadDetails.modelMorph[MMDLoadDetails.focusedModel]?.morphs
-              .length
-          }
-        </Button>
-        <Button
-          sx={{
-            flex: 1,
-            height: props.mobile ? "48px" : undefined,
-            background:
-              theme.palette.mode === "light"
-                ? `rgba(255,255,255, 0.5)`
-                : `rgba(0,0,0, 0.5)`,
-          }}
-          fullWidth
-          onClick={() => {
-            if (!all) {
-              MMDLoadDetails.focusedModel = 0;
-            }
-            setAll(!all);
-          }}
-        >
-          {all ? "All" : "Solo"}
-        </Button>
-        <Button
-          sx={{
-            flex: 3,
-            height: props.mobile ? "48px" : undefined,
-            background:
-              theme.palette.mode === "light"
-                ? `rgba(255,255,255, 0.5)`
-                : `rgba(0,0,0, 0.5)`,
-          }}
-          fullWidth
-          onClick={() => {
-            setBgVisible(!bgVisible);
-          }}
-        >
-          BG toggle
-        </Button>
-      </Box>
-      <Box display={"flex"}>
-        {all
-          ? undefined
-          : new Array(MMDLoadDetails.maxModelFocus).fill(0).map((_, i) => (
-              <Button
-                key={i}
-                sx={{
-                  flex: 1,
-                  height: props.mobile ? "48px" : undefined,
-                  background:
-                    MMDLoadDetails.focusedModel === i
-                      ? undefined
-                      : theme.palette.mode === "light"
-                        ? `rgba(255,255,255, 0.5)`
-                        : `rgba(0,0,0, 0.5)`,
-                }}
-                fullWidth
-                variant={
-                  MMDLoadDetails.focusedModel === i ? "contained" : "text"
-                }
-                onClick={() => {
-                  MMDLoadDetails.focusedModel = i;
-                  MMDLoadDetails.refocusModel();
-                  setMorphs(
-                    (
-                      MMDLoadDetails.modelMorph[MMDLoadDetails.focusedModel]
-                        ?.morphs ?? []
-                    )
-                      .map((morph) => morph.name)
-                      .filter((e) => !defaultBodyNames.includes(e)),
-                  );
-                }}
-              >
-                {i}
-              </Button>
-            ))}
-        <Button
-          sx={{
-            flex: 1,
-            height: props.mobile ? "48px" : undefined,
-            background:
-              theme.palette.mode === "light"
-                ? `rgba(255,255,255, 0.5)`
-                : `rgba(0,0,0, 0.5)`,
-          }}
-          fullWidth
-          variant="outlined"
-          onClick={() => {
-            switch (mode) {
-              case "morph":
-                setMode("move");
-                break;
-              case "move":
-                setMode("morph");
-                break;
-            }
-          }}
-        >
-          {mode}
-        </Button>
-      </Box>
-      <Box
-        sx={{
-          flex: 1,
-          height: "100%",
-          overflowY: "auto",
-          overflowX: "hidden",
-          padding: theme.spacing(2),
-        }}
-      >
-        {mode === "morph" &&
-          morphs.map((morph) => (
-            <MorphEntry
-              key={morph}
-              morph={morph}
-              mobile={props.mobile}
-              targetAll={all}
-              player={props.player}
-            />
-          ))}
-        {mode === "move" && (
-          <>
-            <Box
-              sx={{
-                height: props.mobile ? "40px" : undefined,
-                display: "flex",
-              }}
-            >
-              <Button
-                sx={{
-                  background:
-                    theme.palette.mode === "light"
-                      ? `rgba(255,255,255, 0.5)`
-                      : `rgba(0,0,0, 0.5)`,
-                }}
-                fullWidth
-                onClick={() => {
-                  setCauseType(causeType === "angle" ? "offset" : "angle");
-                }}
-              >
-                {causeType === "offset" ? "Moving Mode" : "Rotate Mode"}
-              </Button>
-            </Box>
-            <Box
-              sx={{
-                height: props.mobile ? "40px" : undefined,
-                display: "flex",
-              }}
-            >
-              <Slider
-                value={causeMultiplier}
-                onChange={(_, val) =>
-                  setCauseMultiplier(val as typeof causeMultiplier)
-                }
-                min={0.5}
-                step={0.1}
-                max={20}
-                valueLabelDisplay="on"
-              ></Slider>
-            </Box>
-            <Box
-              sx={{
-                height: props.mobile ? "40px" : undefined,
-                display: "flex",
-              }}
-            >
-              <Button
-                sx={{
-                  background:
-                    theme.palette.mode === "light"
-                      ? `rgba(255,255,255, 0.5)`
-                      : `rgba(0,0,0, 0.5)`,
-                }}
-                onClick={() =>
-                  cause({ x: 0, y: -causeRate * causeMultiplier, z: 0 }, all)
-                }
-                fullWidth
-              >
-                Down
-              </Button>
-              <Button
-                sx={{
-                  background:
-                    theme.palette.mode === "light"
-                      ? `rgba(255,255,255, 0.5)`
-                      : `rgba(0,0,0, 0.5)`,
-                }}
-                onClick={() =>
-                  cause({ x: 0, y: causeRate * causeMultiplier, z: 0 }, all)
-                }
-                fullWidth
-              >
-                Up
-              </Button>
-            </Box>
-            <Box
-              sx={{
-                height: props.mobile ? "40px" : undefined,
-                display: "flex",
-              }}
-            >
-              <Button
-                sx={{
-                  background:
-                    theme.palette.mode === "light"
-                      ? `rgba(255,255,255, 0.5)`
-                      : `rgba(0,0,0, 0.5)`,
-                }}
-                onClick={() =>
-                  cause({ x: -causeRate * causeMultiplier, y: 0, z: 0 }, all)
-                }
-                fullWidth
-              >
-                Left
-              </Button>
-              <Button
-                sx={{
-                  background:
-                    theme.palette.mode === "light"
-                      ? `rgba(255,255,255, 0.5)`
-                      : `rgba(0,0,0, 0.5)`,
-                }}
-                onClick={() =>
-                  cause({ x: causeRate * causeMultiplier, y: 0, z: 0 }, all)
-                }
-                fullWidth
-              >
-                Right
-              </Button>
-            </Box>
-            <Box
-              sx={{
-                height: props.mobile ? "40px" : undefined,
-                display: "flex",
-              }}
-            >
-              <Button
-                sx={{
-                  background:
-                    theme.palette.mode === "light"
-                      ? `rgba(255,255,255, 0.5)`
-                      : `rgba(0,0,0, 0.5)`,
-                }}
-                onClick={() =>
-                  cause({ x: 0, y: 0, z: causeRate * causeMultiplier }, all)
-                }
-                fullWidth
-              >
-                Back
-              </Button>
-              <Button
-                sx={{
-                  background:
-                    theme.palette.mode === "light"
-                      ? `rgba(255,255,255, 0.5)`
-                      : `rgba(0,0,0, 0.5)`,
-                }}
-                onClick={() =>
-                  cause({ x: 0, y: 0, z: -causeRate * causeMultiplier }, all)
-                }
-                fullWidth
-              >
-                Forward
-              </Button>
-            </Box>
-            <Box sx={{ height: props.mobile ? "40px" : undefined }}> </Box>
-            <Box
-              sx={{
-                height: props.mobile ? "40px" : undefined,
-                display: "flex",
-              }}
-            >
-              <Button
-                sx={{
-                  background:
-                    theme.palette.mode === "light"
-                      ? `rgba(255,255,255, 0.5)`
-                      : `rgba(0,0,0, 0.5)`,
-                }}
-                onClick={() => cause({ x: 0, y: 0, z: 0 }, all, true)}
-                fullWidth
-              >
-                CLEAR VECTORS
-              </Button>
-            </Box>
-          </>
-        )}
+    const onPause = runtime.onPauseAnimationObservable.add(() =>
+      setPlaying(false),
+    );
+    return () => {
+      runtime.onPlayAnimationObservable.remove(onPlay);
+      runtime.onPauseAnimationObservable.remove(onPause);
+    };
+  }, [runtime]);
+  const [tab, setTab] = useState<"morphs" | "move">("morphs");
+  const [all, setAll] = useState(false);
+  const [seeThrough, setSeeThrough] = useState(false);
+  const [filter, setFilter] = useState("");
+  /** Row picked with the arrow keys in the filter. -1 for none. */
+  const [active, setActive] = useState(-1);
+  const filterRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!props.focusFilter) return;
+    setTab("morphs");
+    requestAnimationFrame(() => filterRef.current?.focus());
+  }, [props.focusFilter]);
+  const [showFace, setShowFace] = useState(false);
+  const [saved, setSaved] = useState<MMDLoadDetails["actionMemory"] | null>(
+    null,
+  );
+  const [moveType, setMoveType] = useState<"offset" | "angle">("offset");
+  const [step, setStep] = useState(1);
 
-        <Button
-          sx={{
-            height: props.mobile ? "40px" : undefined,
-            background:
-              theme.palette.mode === "light"
-                ? `rgba(255,255,255, 0.5)`
-                : `rgba(0,0,0, 0.5)`,
-          }}
-          fullWidth
-          onClick={() => {
-            if (toggler.current === null) return;
-            if (Array.isArray(toggler.current)) {
-              MMDLoadDetails.actionMemory = toggler.current;
-            } else {
-              MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel] =
-                toggler.current;
+  const slots = targetSlots(details, all);
+  const allNames =
+    details.modelMorph[details.focusedModel]?.morphs.map((m) => m.name) ?? [];
+  const query = filter.trim().toLowerCase();
+  const names = allNames.filter(
+    (name) =>
+      (showFace || !faceMorphs.has(name)) &&
+      (!query ||
+        name.toLowerCase().includes(query) ||
+        toRomaji(name).includes(query)),
+  );
+  const seekBy = (seconds: number) =>
+    runtime?.seekAnimation(
+      Math.max(
+        0,
+        Math.min(
+          runtime.animationFrameTimeDuration,
+          runtime.currentFrameTime + 30 * seconds,
+        ),
+      ),
+    );
+  const playFromStart = async () => {
+    if (!runtime) return;
+    await runtime.seekAnimation(0, true);
+    if (!runtime.isAnimationPlaying) runtime.playAnimation();
+  };
+
+  return (
+    <SidePanel
+      side="right"
+      title="Morphs"
+      maxWidth={600}
+      open={props.ready && props.open}
+      onClose={props.onClose}
+      transparent={seeThrough}
+    >
+      <Stack sx={{ flex: "1 0 auto" }}>
+        <Stack direction="row">
+          <Button sx={{ ...touch, flex: 1 }} onClick={playFromStart}>
+            Start
+          </Button>
+          <Button sx={{ ...touch, flex: 1 }} onClick={() => seekBy(-1)}>
+            -1s
+          </Button>
+          <Button
+            aria-label={playing ? "Pause" : "Play"}
+            color={seeThrough ? "primary" : "inherit"}
+            sx={{ ...touch, flex: 1 }}
+            onClick={() => {
+              if (playing) runtime?.pauseAnimation();
+              else if (runtime) playOrRestart(runtime);
+            }}
+          >
+            {playing ? <PauseIcon /> : <PlayArrowIcon />}
+          </Button>
+          <Button sx={{ ...touch, flex: 1 }} onClick={() => seekBy(1)}>
+            +1s
+          </Button>
+          <Button
+            aria-label="See-through panel"
+            aria-pressed={seeThrough}
+            color={seeThrough ? "primary" : "inherit"}
+            sx={{ ...touch, flex: 1 }}
+            onClick={() => setSeeThrough(!seeThrough)}
+          >
+            <OpacityIcon />
+          </Button>
+        </Stack>
+
+        <Stack direction="row" alignItems="center" sx={{ pl: 1, gap: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, overflowX: "auto" }}>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              aria-label="Character"
+              value={details.focusedModel}
+              onChange={(_, slot: number | null) => {
+                if (slot === null) return;
+                details.focusedModel = slot;
+                details.refocusModel();
+                redraw();
+              }}
+            >
+              {[...Array(details.maxModelFocus).keys()].map((i) => (
+                <ToggleButton
+                  key={i}
+                  value={i}
+                  disabled={!details.modelMorph[i]}
+                  title={details.entities[i]?.model?.file}
+                  sx={{ ...touch, minWidth: 44 }}
+                >
+                  {i}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Box>
+          <FormControlLabel
+            label="All"
+            sx={{ flexShrink: 0, mr: 1 }}
+            title="Apply changes to every character"
+            control={
+              <Checkbox checked={all} onChange={(_, on) => setAll(on)} />
             }
-          }}
+          />
+        </Stack>
+
+        <Tabs
+          variant="fullWidth"
+          value={tab}
+          onChange={(_, next) => setTab(next)}
         >
-          {toggler.current !== null ? "Load ???" : `NO DATA`}
-        </Button>
-        <Button
-          sx={{
-            height: props.mobile ? "40px" : undefined,
-            background:
-              theme.palette.mode === "light"
-                ? `rgba(255,255,255, 0.5)`
-                : `rgba(0,0,0, 0.5)`,
-          }}
-          fullWidth
-          onClick={() => {
-            if (all) {
-              toggler.current = MMDLoadDetails.actionMemory.map((e) => {
-                const copy: typeof e = JSON.parse(JSON.stringify(e));
-                for (const key in e) {
-                  if (copy[key] === 0) {
-                    delete copy[key];
-                  }
+          <Tab value="morphs" label="Morphs" />
+          <Tab value="move" label="Move" />
+        </Tabs>
+
+        {tab === "morphs" ? (
+          <>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ px: 2, pt: 1 }}
+            >
+              <TextField
+                size="small"
+                placeholder="Filter (kana or romaji)"
+                value={filter}
+                inputRef={filterRef}
+                onChange={(event) => {
+                  setFilter(event.target.value);
+                  setActive(-1);
+                }}
+                onKeyDown={(event) => {
+                  const move = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+                  if (move) {
+                    event.preventDefault();
+                    setActive((i) =>
+                      Math.max(0, Math.min(names.length - 1, i + move)),
+                    );
+                  } else if (event.key === "Enter" && active >= 0)
+                    listRef.current?.children[active]
+                      ?.querySelector("button")
+                      ?.click();
+                }}
+                slotProps={{
+                  input: {
+                    endAdornment: filter && (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="Clear filter"
+                          size="small"
+                          edge="end"
+                          onClick={() => {
+                            setFilter("");
+                            setActive(-1);
+                            filterRef.current?.focus();
+                          }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+                sx={{ flex: 1 }}
+              />
+              <FormControlLabel
+                label="Face"
+                title="Show the standard face morphs too"
+                control={
+                  <Checkbox
+                    checked={showFace}
+                    onChange={(_, on) => setShowFace(on)}
+                  />
                 }
-                return copy;
-              });
-            } else {
-              const copy = JSON.parse(
-                JSON.stringify(
-                  MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel],
-                ),
-              ) as (typeof MMDLoadDetails.actionMemory)[number];
-              for (const key in MMDLoadDetails.actionMemory[
-                MMDLoadDetails.focusedModel
-              ]) {
-                if (copy[key] === 0) {
-                  delete copy[key];
+              />
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ px: 2 }}>
+              {allNames.length
+                ? `${names.length} of ${allNames.length} morphs`
+                : "This character has no morphs."}
+            </Typography>
+            <Box
+              ref={listRef}
+              sx={{ height: 200, flexGrow: 1, overflowY: "auto" }}
+            >
+              {names.map((name, i) => (
+                <MorphRow
+                  key={`${details.focusedModel}-${revision}-${name}`}
+                  name={name}
+                  all={all}
+                  details={details}
+                  active={i === active}
+                />
+              ))}
+            </Box>
+            <Stack
+              direction="row"
+              sx={{ borderTop: 1, borderColor: "divider" }}
+            >
+              <Button
+                sx={{ ...touch, flex: 1 }}
+                title="The animation can override morphs. This sets your values again."
+                onClick={() => applyMemory(details, slots)}
+              >
+                Re-apply
+              </Button>
+              <Button
+                sx={{ ...touch, flex: 1 }}
+                title="Remember the current values of every character"
+                onClick={() =>
+                  setSaved(details.actionMemory.map((m) => ({ ...m })))
                 }
+              >
+                Save
+              </Button>
+              <Button
+                sx={{ ...touch, flex: 1 }}
+                disabled={!saved}
+                title="Go back to the saved values"
+                onClick={() => {
+                  resetMemory(details, slots);
+                  for (const i of slots)
+                    details.actionMemory[i] = { ...saved?.[i] };
+                  applyMemory(details, slots);
+                  redraw();
+                }}
+              >
+                Restore
+              </Button>
+              <Button
+                sx={{ ...touch, flex: 1 }}
+                color="warning"
+                title="Set your changed morphs back to 0"
+                onClick={() => {
+                  resetMemory(details, slots);
+                  redraw();
+                }}
+              >
+                Reset
+              </Button>
+            </Stack>
+          </>
+        ) : (
+          <Stack spacing={1} sx={{ p: 2 }}>
+            <ToggleButtonGroup
+              exclusive
+              fullWidth
+              value={moveType}
+              onChange={(_, next) => next && setMoveType(next)}
+            >
+              <ToggleButton value="offset" sx={touch}>
+                Move
+              </ToggleButton>
+              <ToggleButton value="angle" sx={touch}>
+                Rotate
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={2}
+              sx={{ px: 1 }}
+            >
+              <Typography variant="body2">Step</Typography>
+              <Slider
+                aria-label="Step"
+                value={step}
+                min={0.5}
+                max={20}
+                step={0.5}
+                valueLabelDisplay="auto"
+                onChange={(_, next) => setStep(next)}
+              />
+            </Stack>
+            {moveRows.map(([axis, moveLabels, rotateLabel]) => (
+              <Stack key={axis} direction="row" spacing={1}>
+                {([-1, 1] as const).map((sign, i) => (
+                  <Button
+                    key={sign}
+                    variant="outlined"
+                    fullWidth
+                    sx={touch}
+                    onClick={() =>
+                      moveEntities(
+                        moveType,
+                        details,
+                        {
+                          x: 0,
+                          y: 0,
+                          z: 0,
+                          [axis]: sign * stepRate[moveType] * step,
+                        },
+                        all,
+                      )
+                    }
+                  >
+                    {moveType === "offset"
+                      ? moveLabels[i]
+                      : `${rotateLabel} ${sign < 0 ? "−" : "+"}`}
+                  </Button>
+                ))}
+              </Stack>
+            ))}
+            <Button
+              color="warning"
+              sx={touch}
+              onClick={() =>
+                moveEntities(moveType, details, { x: 0, y: 0, z: 0 }, all, true)
               }
-              toggler.current = copy;
-            }
-          }}
-        >
-          {all ? "Save All" : `Save Index ${MMDLoadDetails.focusedModel}`}
-        </Button>
-        <Button
-          sx={{
-            height: props.mobile ? "40px" : undefined,
-            background:
-              theme.palette.mode === "light"
-                ? `rgba(255,255,255, 0.5)`
-                : `rgba(0,0,0, 0.5)`,
-          }}
-          fullWidth
-          onClick={() => {
-            if (all) {
-              MMDLoadDetails.actionMemory = [];
-              for (let i = 0; i < MMDLoadDetails.maxModelFocus; i++) {
-                MMDLoadDetails.actionMemory.push({});
-              }
-            } else {
-              MMDLoadDetails.actionMemory[MMDLoadDetails.focusedModel] = {};
-            }
-          }}
-        >
-          {all ? "Clear All SyncData" : `Clear Selected SyncData`}
-        </Button>
-      </Box>
-    </Box>
+            >
+              {moveType === "offset" ? "Reset position" : "Reset rotation"}
+            </Button>
+          </Stack>
+        )}
+      </Stack>
+    </SidePanel>
   );
 }
 

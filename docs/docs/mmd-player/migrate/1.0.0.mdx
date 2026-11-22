@@ -138,3 +138,12 @@ The [Docusaurus config fix](../issues.mdx#fix-for-docusaurus) is still needed.
 - **Keyboard:** key presses inside the player now also reach the rest of the
   page. In 0.1.2 the player stopped them, which also blocked typing in its own
   text fields.
+- **Controls:** the controls drawer, the mobile controls drawer and the controls
+  help button are replaced by a playback bar, Tools and Morphs side panels, an
+  option wheel (right click or long press) and a controls help dialog
+  (<kbd>H</kbd>). The player also has new keyboard shortcuts. See
+  [Controls](../component.mdx#controls).
+- **Default resolution:** a "Container" resolution was added at index 0 of
+  `defaultResolutions`. It renders at the player's size on screen, and is now
+  the default in fullscreen instead of "Screen Size". Outside fullscreen the
+  default is still 720p.

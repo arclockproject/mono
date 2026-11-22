@@ -1,13 +1,11 @@
 ---
 title: Image
-description: "An image, video or PSD that can be dragged and zoomed."
+description: "An image or video that can be dragged and zoomed."
 ---
 
 ## Dependencies {#dependencies}
 
 This component does not require any dependencies.
-
-To show `.psd` files, it also needs [PSDViewer](../PSDViewer/index.mdx) and its dependencies.
 
 ## Usage {#usage}
 
@@ -15,16 +13,22 @@ To show `.psd` files, it also needs [PSDViewer](../PSDViewer/index.mdx) and its 
 import Image from "@arclockproject/common/components/Image";
 ```
 
+- With `enableMovement`, the file can be dragged and zoomed. `defaultTransform` and
+  `onTransformChange` work as in [Movable](../Movable/index.mdx#remember-the-position), so you can
+  keep the position and zoom when the image remounts.
+- With `renderer="auto"`, `.mp4`, `.mov` and `.mkv` files are shown as videos. Anything else is
+  shown as an image.
+- For videos, `onLoad` runs when the first frame is ready.
+- To show `.psd` files, use [PSDViewer](../PSDViewer/index.mdx).
+
 The examples below are live. Edit the code to try your own values. Drag the image to move it.
 
-### Image without PSDViewer {#image-without-psdviewer}
+### Image {#image}
 
-Without a PSD renderer, `.psd` files are loaded as normal images.
+Scroll over the image to zoom.
 
 ```tsx live showLineNumbers
 <Image
-  autoPlay
-  controls
   enableMovement
   onError={() => console.error("Image: Error!")}
   onLoad={() => console.log("Image: Loaded!")}
@@ -37,61 +41,18 @@ Without a PSD renderer, `.psd` files are loaded as normal images.
 />
 ```
 
-### Image with PSDViewer {#image-with-psdviewer}
+### Video {#video}
 
-`.psd` files are shown with `PSDViewer`.
-
-```tsx
-import Image from "@arclockproject/common/components/Image";
-import PSDViewer from "@arclockproject/common/components/PSDViewer";
-```
+Videos play muted and on a loop. `controls` shows the video controls, but only while
+`enableMovement` is off. Add `enableMovement` to drag the video instead.
 
 ```tsx live showLineNumbers
 <Image
   autoPlay
   controls
-  enableMovement
-  onError={() => console.error("Image: Error!")}
-  onLoad={() => console.log("Image: Loaded!")}
-  psdRenderer={{
-    component: PSDViewer,
-    isLazy: false,
-  }}
+  enableMovement={false}
   renderer="auto"
-  src={`${REMOTE.base}/PXQZNGjZIFo.webp`}
-  styleImage={{
-    width: "100%",
-    height: "100%",
-  }}
-/>
-```
-
-### Image with lazy PSDViewer {#image-with-lazy-psdviewer}
-
-To keep your bundle small, load `PSDViewer` lazily. It is only downloaded when a `.psd` file is
-shown. `Image` wraps it in `<Suspense />` for you, so you don't need to add one.
-
-```tsx
-import Image from "@arclockproject/common/components/Image";
-import { lazy } from "react";
-const PSDViewer = lazy(
-  () => import("@arclockproject/common/components/PSDViewer"),
-);
-```
-
-```tsx live showLineNumbers
-<Image
-  autoPlay
-  controls
-  enableMovement
-  onError={() => console.error("Image: Error!")}
-  onLoad={() => console.log("Image: Loaded!")}
-  psdRenderer={{
-    component: PSDViewer,
-    isLazy: true,
-  }}
-  renderer="auto"
-  src={`${REMOTE.base}/PXQZNGjZIFo.webp`}
+  src={`${REMOTE.base}/PXQZNGjZIFo.mp4`}
   styleImage={{
     width: "100%",
     height: "100%",

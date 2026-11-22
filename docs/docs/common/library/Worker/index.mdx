@@ -1,0 +1,106 @@
+---
+title: "Worker"
+description: "A queue that runs an async task for each item, a few at a time, with progress and cancelling."
+---
+
+## Dependencies {#dependencies}
+
+This library does not require any dependencies. It works in the browser and in Node.js.
+
+## Usage {#usage}
+
+```tsx
+import Worker from "@arclockproject/common/library/Worker";
+
+const downloads = new Worker<string>(
+  async (url, updatePercentage, signal) => {
+    const response = await fetch(url, { signal });
+    updatePercentage(1);
+    return response.ok;
+  },
+  2,
+);
+downloads.queue("/a.png");
+downloads.queue("/b.png");
+downloads.start();
+```
+
+- The action gets the item, a function to report progress from `0` to `1`, and an `AbortSignal`.
+  It returns `true` if it worked and `false` if it failed. A thrown error counts as `false`.
+- Nothing runs until `start()`. The worker then checks for free slots every `workerTickRate` ms
+  (the third constructor argument, 1000 by default) and starts up to `count` items at a time, in
+  the order they were queued.
+- `drop()` removes the next queued item. `drop(true)` stops the oldest running one: its `signal`
+  is aborted and its slot is freed at once. `dropAll()` clears the queue, and `dropAll(true)` also
+  stops everything that is running.
+- A stopped item counts as `failed` only if its action returns `false` or throws. Returning `true`
+  after the abort means it stopped the way it wanted to.
+- `status()` gives the queue size, the average progress of the running items, and how many
+  completed or failed.
+
+The examples below are live. Edit the code to try your own values. In them the class is called
+`TaskWorker`, so it doesn't hide the browser's built-in `Worker`.
+
+### Queue, progress and cancelling {#queue-progress-and-cancelling}
+
+Each task counts to 100% over a few seconds. Two run at the same time. Add tasks, stop them, and
+watch the numbers.
+
+```tsx live
+function WorkerPlayground() {
+  const [, rerender] = useState(0);
+  const [worker] = useState(
+    () =>
+      new TaskWorker(
+        (name, updatePercentage, signal) =>
+          new Promise((resolve) => {
+            let done = 0;
+            const timer = setInterval(() => {
+              if (signal.aborted) {
+                clearInterval(timer);
+                resolve(false);
+                return;
+              }
+              done += 0.1;
+              updatePercentage(done);
+              if (done >= 1) {
+                clearInterval(timer);
+                resolve(true);
+              }
+            }, 300);
+          }),
+        2,
+        200,
+      ),
+  );
+  useEffect(() => {
+    const timer = setInterval(() => rerender((n) => n + 1), 100);
+    return () => {
+      clearInterval(timer);
+      worker.dropAll(true);
+      worker.stop();
+    };
+  }, [worker]);
+  const status = worker.status();
+
+  return (
+    <div>
+      <button type="button" onClick={() => worker.queue(`task ${Date.now() % 1000}`)}>Queue task</button>{" "}
+      <button type="button" onClick={() => (worker.started ? worker.stop() : worker.start())}>
+        {worker.started ? "Stop" : "Start"}
+      </button>{" "}
+      <button type="button" onClick={() => worker.drop()}>Drop next</button>{" "}
+      <button type="button" onClick={() => worker.drop(true)}>Stop oldest running</button>{" "}
+      <button type="button" onClick={() => worker.dropAll(true)}>Stop everything</button>
+      <p>
+        <progress value={status.percentage} max={1} /> {Math.round(status.percentage * 100)}%
+      </p>
+      <pre>{JSON.stringify(status, null, 2)}</pre>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [Worker API reference](/docs/api/common/library/Worker) for every prop, method and type.

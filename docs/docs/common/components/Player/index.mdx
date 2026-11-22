@@ -29,6 +29,8 @@ A video and audio player made of parts that share one state:
 - `MiniPlayer` is a small player bar fixed to the bottom-right of the screen.
 - `usePlayer` gives your own components access to the state.
 
+The settings button in the controls and right-click open the same menu: loop, subtitles, video filters, audio effects, 180°/360°/3D and debug info. To move or zoom the video, pick **Move and zoom** there. Then drag it, use the mouse wheel or pinch. Taps on the video don't play, pause or seek until you press **Done** or `Esc`. The position and zoom stay after **Done**. To undo them, press **Reset**, or pick **Reset move and zoom** in the menu.
+
 The examples below are live. Edit the code to try your own values.
 
 ### Single video {#single-video}
@@ -63,6 +65,82 @@ Pass `videoData` to load an entry as soon as the player mounts.
     <AudioHolder />
   </div>
 </PlayerContextProvider>
+```
+
+### Subtitles {#subtitles}
+
+Set `files.subtitles` to a `.vtt`, `.srt` or `.ass`/`.ssa` file. The player draws them itself, so they also show in audio only mode and for videos without a separate audio file. `.ass` fonts, colours, outlines and positions are kept. Animations (`\t`, `\fad`, karaoke) are not played, and fonts must be installed on the viewer's device. Files on another origin need CORS headers.
+
+Viewers turn subtitles on with `C` or the settings menu. **Subtitle settings** changes the size, colour, background, height and timing, and can turn off the file's own styles. These settings are saved.
+
+Play the video and press `C`. The file below is `.ass`, passed as a `data:` URL.
+
+```tsx live showLineNumbers
+function main() {
+  const ass = String.raw`[Script Info]
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,64,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3,1,2,60,60,60,1
+Style: Sign,Georgia,48,&H0000E1FF,&H000000FF,&H00202020,&H00000000,1,0,0,0,100,100,0,0,3,8,0,8,40,40,40,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:05.00,Default,,0,0,0,,Subtitles drawn by the player.\N{\i1}Second line in italics.
+Dialogue: 0,0:00:05.00,0:00:10.00,Default,,0,0,0,,Colours: {\c&H4040FF&}red{\r}, {\c&HFFC040&}blue{\r} and {\b1}bold{\b0}.
+Dialogue: 1,0:00:02.00,0:00:10.00,Sign,,0,0,0,,A boxed sign at the top
+Dialogue: 0,0:00:10.00,0:00:20.00,Default,,0,0,0,,{\an7\pos(120,240)\fs48}Placed with \pos
+`;
+  return (
+    <PlayerContextProvider>
+      <div style={{ width: "80%", maxWidth: "600px" }}>
+        <VideoPlayer
+          videoData={{
+            files: {
+              video: `${REMOTE.base}/PXQZNGjZIFo.mp4`,
+              audio: `${REMOTE.base}/PXQZNGjZIFo.m4a`,
+              subtitles: `data:text/plain;charset=utf-8,${encodeURIComponent(ass)}`,
+              thumbnail: `${REMOTE.base}/PXQZNGjZIFo.webp`,
+            },
+            id: "original-2-eis3-subtitles",
+            title: "Original Piece #2 by Eis3",
+            meta: null,
+          }}
+          isPlaylist={false}
+          chapters={[]}
+          heatmap={[]}
+          showInlineTitle
+        />
+        <AudioHolder />
+      </div>
+    </PlayerContextProvider>
+  );
+}
+```
+
+### 180°, 360° and 3D {#180-360-and-3d}
+
+Set `format` on the entry for videos that aren't flat. In 180° and 360° videos, viewers drag to look around and scroll or pinch to zoom. Taps still play and pause. In 180°, everything behind the viewer is black. 3D videos (`stereo`) hold one picture per eye. Outside VR, only the left eye is shown, stretched back to its real shape.
+
+Viewers can also set the format themselves in **180°, 360° and 3D** in the settings menu, for entries without `format`. In browsers with a VR headset, the menu has **Enter VR**, which shows each eye on its own side.
+
+180° and 360° need the video's pixels, so the file must come from the same origin as the page, or `settings.corsMedia` must be on with a server that sends CORS headers. Otherwise the video is shown flat.
+
+```tsx
+<VideoPlayer
+  videoData={{
+    id: "my-vr180-clip",
+    title: "VR180 clip",
+    files: { video: "/videos/clip.mp4", audio: null, subtitles: null, thumbnail: "/videos/clip.webp" },
+    meta: null,
+    format: { projection: "180", stereo: "sbs" }, // VR180: side by side, one 180° half-sphere per eye
+  }}
+  isPlaylist={false}
+  chapters={[]}
+  heatmap={[]}
+/>
 ```
 
 ### Mini player and playlist {#mini-player-and-playlist}

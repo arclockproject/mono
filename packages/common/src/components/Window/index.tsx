@@ -55,7 +55,9 @@ export default function Window(
      * @default { x: 100, y: 100 }
      */
     spawnCoordinate?: {
+      /** Pixels from the left of the screen. */
       x: number;
+      /** Pixels from the top of the screen. */
       y: number;
     };
     /**
@@ -63,7 +65,9 @@ export default function Window(
      * @default { width: 300, height: 300 }
      */
     spawnSize?: {
+      /** Width in pixels. */
       width: number;
+      /** Height in pixels. */
       height: number;
     };
   }>,

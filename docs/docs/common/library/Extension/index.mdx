@@ -1,0 +1,64 @@
+---
+title: "Extension"
+description: "Find out which file extension a URL has on the server, by trying to load it."
+---
+
+## Dependencies {#dependencies}
+
+This library does not require any dependencies. It runs in the browser, because it loads the
+files with `<img>` and `<video>` elements.
+
+## Usage {#usage}
+
+```tsx
+import Extension from "@arclockproject/common/library/Extension";
+```
+
+Use it when files are stored as `page-1.webp` or `page-1.png` and you only know `page-1`.
+
+- `Extension.probe(url)` loads one URL and says whether it worked. `mp4`, `mov`, `mkv` and `webm`
+  are loaded as videos (metadata only), everything else as an image.
+- `Extension.resolve(url, extensions)` tries each extension in order and gives the first URL that
+  loads, or `null`. They are tried one after another, so put the most likely one first.
+- A failed load shows up as an error in the browser's network tab. That is expected.
+
+The examples below are live. Edit the code to try your own values.
+
+### Find the extension {#find-the-extension}
+
+The demo image is stored as `.webp`. Change the order of the extensions, or remove `webp`, to see
+what is found.
+
+```tsx live
+function ExtensionPlayground() {
+  const [extensions, setExtensions] = useState("png, jpg, webp");
+  const [result, setResult] = useState("…");
+
+  useEffect(() => {
+    let cancelled = false;
+    setResult("…");
+    const list = extensions.split(",").map((e) => e.trim()).filter(Boolean);
+    Extension.resolve(`${REMOTE.base}/PXQZNGjZIFo`, list).then((url) => {
+      if (!cancelled) setResult(JSON.stringify(url));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [extensions]);
+
+  return (
+    <div>
+      <label>
+        Extensions: <input value={extensions} onChange={(e) => setExtensions(e.target.value)} />
+      </label>
+      <p>
+        <code>Extension.resolve(".../PXQZNGjZIFo", ...)</code> → <code>{result}</code>
+      </p>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [Extension API reference](/docs/api/common/library/Extension) for every prop, method and type.

@@ -28,6 +28,7 @@ function MMDLoadDetailsPreviewDialog(props: SimpleDialogProps): JSX.Element {
         <code
           className="mmd-load-details-preview"
           style={{
+            all: "revert",
             display: "flex",
             fontSize: "1rem",
             whiteSpace: "break-spaces",

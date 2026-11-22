@@ -23,13 +23,16 @@ function AudioHolder<metaType, listMetaType>(): JSX.Element {
         <audio
           // eslint-disable-next-line
           ref={context.internal.refAudio as Ref<HTMLAudioElement>}
+          crossOrigin={
+            context.internal.settings.value.corsMedia ? "anonymous" : undefined
+          }
           src={
             context.internal.audioControlled
               ? context.internal.sourceOverride.value
                 ? context.internal.sourceOverride.value
                 : context.internal.playerData.value.files.audio
                   ? context.internal.playerData.value.files.audio
-                  : undefined
+                  : context.internal.playerData.value.files.video
               : undefined
           }
           muted={
@@ -64,6 +67,12 @@ function AudioHolder<metaType, listMetaType>(): JSX.Element {
           onError={
             context.internal.audioControlled
               ? context.internal.actionOnError
+              : undefined
+          }
+          onWaiting={
+            context.internal.audioControlled &&
+            !context.internal.audioOnly.value
+              ? (e) => context.internal.actionOnWaiting(e, "audio")
               : undefined
           }
         />

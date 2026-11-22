@@ -1,21 +1,35 @@
 //#region Imports
 
 import { Engine } from "@babylonjs/core/Engines/engine.js";
-import { AppBar, Box, Button, Tab, Tabs, Typography } from "@mui/material";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import {
+  AppBar,
+  Box,
+  Button,
+  FormControlLabel,
+  Stack,
+  Switch,
+  Tab,
+  Tabs,
+  Typography,
+} from "@mui/material";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import {
+  type KeyboardEvent,
   type ReactNode,
   type Ref,
   useEffect,
-  useId,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import type { JSX } from "react/jsx-runtime";
 import { toRomaji } from "wanakana";
 import { BaseRuntime } from "./BaseRuntime";
-import { ControlsDrawer } from "./ControlsDrawer";
+import { ControlsDrawer, toggleFullscreen } from "./ControlsDrawer";
 import {
+  defaultResolutions,
   type MMDLoadDetails,
   MMDLoadDetails as MMDLoadDetailsClass,
   type MMDPlayer,
@@ -27,14 +41,19 @@ import {
   overlay90,
   type processedDivision,
   type processingDivision,
+  type Resolution,
 } from "./config";
-import { ExplainControlsButton } from "./ExplainControlsButton";
+import { ExplainControlsDialog } from "./ExplainControlsDialog";
+import { loadMMDFileByURL } from "./loadFile";
 import { MMDLoadDetailsPreviewDialog } from "./MMDLoadDetailsPreviewDialog";
 import { MorphDrawer } from "./MorphDrawer";
-import { ResolutionSelector, validResolutions } from "./ResolutionSelector";
+import { OptionWheel, usePlayerWheelActions } from "./OptionWheel";
+import { PlaybackBar } from "./PlaybackBar";
+import { TopBar, useAutoHide } from "./PlayerOverlay";
+import { ResolutionSelector } from "./ResolutionSelector";
+import { SavePresetDialog } from "./SavePresetDialog";
 import { SceneBuilderSplit } from "./SceneBuilderSplit";
-import { SimpleTreeViewSearchable } from "./SimpleTreeViewSearchable";
-import { loadMMDFileByURL } from "./loadFile";
+import { SceneCustomizer } from "./SceneCustomizer";
 
 // import { number } from "zod";
 // import { PointLight } from "@babylonjs/core/Lights/pointLight";
@@ -42,29 +61,66 @@ import { loadMMDFileByURL } from "./loadFile";
 //#endregion
 
 //#region Mmd.tsx
-const updateCanvasResolution = ({ MMDLoadDetails, root }: MMDPlayer): void => {
+
+/** The player's UI is dark, so it reads well over the video on any page. */
+/** Where popups (menus, tooltips, dialogs) go: only the fullscreen element's contents show while fullscreen. */
+const popupContainer = () => document.fullscreenElement ?? document.body;
+const playerTheme = createTheme({
+  palette: { mode: "dark" },
+  components: {
+    MuiPopover: { defaultProps: { container: popupContainer } },
+    MuiPopper: { defaultProps: { container: popupContainer } },
+    MuiModal: { defaultProps: { container: popupContainer } },
+  },
+});
+const closedPanels = { tools: false, morphs: false, help: false };
+/** On/off options on the Play tab. */
+const startOptions = [
+  ["useBulletPhysics", "Bullet physics (closer to MMD, heavier)"],
+  ["useAdvanceRendering", "Advanced rendering (reflections and effects)"],
+  ["offsetCharacters", "Place characters side by side"],
+] as const;
+/** Shortcut key → the panel it toggles. */
+const panelKeys: Record<string, keyof typeof closedPanels | undefined> = {
+  t: "tools",
+  m: "morphs",
+  h: "help",
+};
+
+/**
+ * Sizes the canvas and the player's shape to the selected resolution: the
+ * fullscreen one while fullscreen, the normal one otherwise. An index the list
+ * doesn't have uses its first resolution.
+ */
+const updateCanvasResolution = ({
+  MMDLoadDetails,
+  root,
+  resolutions,
+}: MMDPlayer): void => {
   const rootElement = root.current;
   const canvas =
     rootElement?.querySelector<HTMLCanvasElement>("canvas.mmd-render");
-  if (!rootElement || !canvas) return;
+  const { fullscreen, normal, swappedAspectRatio } = MMDLoadDetails.resolutions;
   const resolution =
-    validResolutions[
-      rootElement.contains(document.fullscreenElement)
-        ? MMDLoadDetails.resolutions.fullscreen
-        : MMDLoadDetails.resolutions.normal
-    ]!;
+    resolutions[
+      rootElement?.contains(document.fullscreenElement) ? fullscreen : normal
+    ] ?? resolutions[0];
+  if (!rootElement || !canvas || !resolution) return;
   rootElement.style.aspectRatio =
-    MMDLoadDetails.resolutions.swappedAspectRatio &&
-    typeof resolution.ratio === "number"
+    swappedAspectRatio && typeof resolution.ratio === "number"
       ? `${1 / resolution.ratio}`
       : `${resolution.ratio}`;
-  if (MMDLoadDetails.resolutions.swappedAspectRatio) {
-    canvas.width = resolution.height();
-    canvas.height = resolution.width();
-  } else {
-    canvas.width = resolution.width();
-    canvas.height = resolution.height();
-  }
+  const { clientWidth, clientHeight } = rootElement;
+  const landscape = swappedAspectRatio
+    ? { width: clientHeight, height: clientWidth }
+    : { width: clientWidth, height: clientHeight };
+  const width = Math.round(resolution.width(landscape));
+  const height = Math.round(resolution.height(landscape));
+  const [canvasWidth, canvasHeight] = swappedAspectRatio
+    ? [height, width]
+    : [width, height];
+  if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
+  if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
 };
 /**
  * Writes the player's scene as `MMDTemplateEntry` JSON into its debug dialog,
@@ -76,33 +132,45 @@ const updatePreview = ({ MMDLoadDetails, root }: MMDPlayer): void => {
   );
   if (preview)
     preview.innerText = JSON.stringify(
-      {
-        title: "Untitled",
-        subTitle: "(Unnamed Cover)",
-        thumbnail: MMDLoadDetails.thumbnail,
-        music: MMDLoadDetails.musicRaw,
-        vmdCamera: MMDLoadDetails.vmdCamera,
-        stageFolder: MMDLoadDetails.stageFolder,
-        stagePMX: MMDLoadDetails.stagePMX,
-        entities: MMDLoadDetails.entities,
-        entitiesOffset: MMDLoadDetails.entitiesOffset,
-        entitiesAngle: MMDLoadDetails.entitiesAngle,
-        modelPlayOffset: MMDLoadDetails.controller.frameOffset.model,
-        focusedModel: MMDLoadDetails.focusedModel,
-        actionMemory: MMDLoadDetails.actionMemory.map((e) => {
-          const copy: typeof e = JSON.parse(JSON.stringify(e));
-          for (const key in e) {
-            if (copy[key] === 0) {
-              delete copy[key];
-            }
-          }
-          return copy;
-        }),
-      } as MMDTemplateEntry,
+      buildPreset(MMDLoadDetails),
       undefined,
       2,
     );
 };
+
+/** The current scene as a preset. A copy, so later changes to the scene don't change it. */
+const buildPreset = (MMDLoadDetails: MMDLoadDetails): MMDTemplateEntry =>
+  JSON.parse(
+    JSON.stringify({
+      title: "Untitled",
+      subTitle: "(Unnamed Cover)",
+      thumbnail: MMDLoadDetails.thumbnail,
+      music: MMDLoadDetails.musicRaw,
+      vmdCamera: MMDLoadDetails.vmdCamera,
+      stageFolder: MMDLoadDetails.stageFolder,
+      stagePMX: MMDLoadDetails.stagePMX,
+      entities: MMDLoadDetails.entities,
+      entitiesOffset: MMDLoadDetails.entitiesOffset,
+      entitiesAngle: MMDLoadDetails.entitiesAngle,
+      modelPlayOffset: MMDLoadDetails.controller.frameOffset.model,
+      cameraPlayOffset: MMDLoadDetails.controller.frameOffset.camera,
+      cameraType: MMDLoadDetails.cameraType,
+      cameraOffset: MMDLoadDetails.zCamOffset,
+      directLight: MMDLoadDetails.directLight,
+      loop: MMDLoadDetails.loop,
+      playbackRate: MMDLoadDetails.playbackRate,
+      focusedModel: MMDLoadDetails.focusedModel,
+      actionMemory: MMDLoadDetails.actionMemory.map((e) => {
+        const copy: typeof e = JSON.parse(JSON.stringify(e));
+        for (const key in e) {
+          if (copy[key] === 0) {
+            delete copy[key];
+          }
+        }
+        return copy;
+      }),
+    } as MMDTemplateEntry),
+  );
 
 function createDivisions(current: string, root: string): processingDivision {
   const currentSplit = current.split("/");
@@ -313,15 +381,49 @@ function Mmd(props: {
    * @returns [`/some/path/{value}.mp3`, `/other/path/{value}.png`]
    */
   loadAudioMeta: (value: string) => [string, string];
+  /**
+   * The resolutions to choose from in the resolution menus. To add your own,
+   * pass `[...defaultResolutions, yours]`. The default picks are list indexes
+   * (0 in fullscreen, 7 otherwise); if your list is shorter, its first is used.
+   *
+   * @default defaultResolutions
+   */
+  resolutions?: Resolution[];
+  /**
+   * Called by the presets tab's "Save to current preset" and "Save as new preset"
+   * buttons with the current scene, after the user confirms its id, title and
+   * subtitle in a dialog. Not called if they cancel. Without it, the buttons are hidden.
+   * Only when it returns `true` is the player's preset list updated and the dialog
+   * closed. Throwing counts as `false`.
+   * "Save to current preset" keeps the loaded preset's `id`. A new preset gets
+   * the `id` typed in the dialog; checking that it's unique is up to you.
+   *
+   * @param preset A copy of the scene.
+   * @param isNew `true` for "Save as new preset".
+   * @returns Whether it was saved.
+   */
+  onSavePreset?: (
+    preset: MMDTemplateEntry,
+    isNew: boolean,
+  ) => boolean | Promise<boolean>;
 }): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
-  const styleID = useId();
   const [player] = useState(
     (): MMDPlayer => ({
       MMDLoadDetails: new MMDLoadDetailsClass(),
       root: rootRef,
+      resolutions: defaultResolutions,
     }),
   );
+  player.resolutions = props.resolutions ?? defaultResolutions;
+  useLayoutEffect(() => {
+    const rootElement = rootRef.current;
+    if (!rootElement) return;
+    updateCanvasResolution(player);
+    const observer = new ResizeObserver(() => updateCanvasResolution(player));
+    observer.observe(rootElement);
+    return () => observer.disconnect();
+  }, [player]);
   const { MMDLoadDetails } = player;
   const MMDUpdatePreview = () => updatePreview(player);
   const [onFullscreenChange] = useState(
@@ -339,8 +441,12 @@ function Mmd(props: {
     Promise.resolve(props.presets()).then((res) => {
       presets.current = res;
     });
+    loadFiles();
+  }, []);
+  /** Loads the MMD file list for the scene builder. Also used by its "Refresh" button. */
+  const loadFiles = () =>
     Promise.resolve(props.rawMMDDetails()).then((res) => {
-      let data: mmdDetails =
+      const data: mmdDetails =
         res.all !== undefined
           ? (res as mmdDetails)
           : {
@@ -352,7 +458,6 @@ function Mmd(props: {
       setMmdDetails(processMmdDetails(data));
       setMmdDetailsRaw(data);
     });
-  }, []);
   const [startingTab, setStartingTab] = useState("play");
   const [MMDLoadDetailsPreviewShow, setMMDLoadDetailsPreviewShow] =
     useState(false);
@@ -362,14 +467,51 @@ function Mmd(props: {
   );
   const [mmdDetailsRaw, setMmdDetailsRaw] = useState<mmdDetails | null>(null);
   const [selected, setSelected] = useState("");
+  /** The preset waiting for its title in the save dialog. `index` is `null` for a new preset. */
+  const [saving, setSaving] = useState<{
+    preset: MMDTemplateEntry;
+    index: number | null;
+  } | null>(null);
   const [_, setCounter] = useState(0);
-  const [selectedTab, setSelectedTab] = useState(0);
   const refreshPage = () =>
     setCounter((counter) => {
       MMDUpdatePreview();
       return counter + 1;
     });
-  useEffect(() => {}, []);
+  const [panels, setPanels] = useState(closedPanels);
+  /** The scene is built, so the playback bar can attach to its runtime. */
+  const [sceneLoaded, setSceneLoaded] = useState(false);
+  /** Bumped by the "/" key to focus the morph filter. */
+  const [morphSearch, setMorphSearch] = useState(0);
+  const togglePanel = (panel: keyof typeof closedPanels, open?: boolean) =>
+    setPanels((p) => ({ ...p, [panel]: open ?? !p[panel] }));
+  const autoHide = useAutoHide(player, ready);
+  const wheelActions = usePlayerWheelActions(player, {
+    onMorphs: () => togglePanel("morphs"),
+    onTools: () => togglePanel("tools"),
+  });
+  /** Stopping the scene is done by the cleanup of the effect below, when `ready` turns false. */
+  const exitPlayer = () => {
+    setPanels(closedPanels);
+    setSceneLoaded(false);
+    setReady(false);
+  };
+  /** Panel shortcuts. Only work while focus is inside this player. */
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (!ready || event.ctrlKey || event.metaKey || event.altKey) return;
+    if ((event.target as Element).closest("input, textarea, select")) return;
+    const key = event.key.toLowerCase();
+    const panel = panelKeys[key];
+    if (panel) togglePanel(panel);
+    else if (key === "escape") setPanels(closedPanels);
+    else if (key === "f") toggleFullscreen(rootRef.current);
+    else if (key === "/") {
+      event.preventDefault();
+      togglePanel("morphs", true);
+      setMorphSearch((n) => n + 1);
+    } else return;
+    autoHide.show();
+  };
   useEffect(() => {
     if (!ready) return;
     const canvas =
@@ -391,37 +533,33 @@ function Mmd(props: {
       true,
     );
 
+    /** Set when the player is closed, possibly while the scene is still loading. */
+    let closed = false;
     BaseRuntime.Create({
       canvas,
       engine,
       sceneBuilder: new SceneBuilderSplit(player),
-    }).then((runtime) => {
-      player.runtime = runtime;
-      runtime.run();
-    });
+    })
+      .then((runtime) => {
+        if (closed) return;
+        player.runtime = runtime;
+        runtime.run();
+        setSceneLoaded(true);
+      })
+      .catch((error) => {
+        if (!closed) throw error;
+      });
     onFullscreenChange();
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => {
+      closed = true;
       document.removeEventListener("fullscreenchange", onFullscreenChange);
-      player.runtime?.dispose();
+      engine.dispose();
+      player.runtime = undefined;
     };
   }, [ready]);
-  const resolution = validResolutions[MMDLoadDetails.resolutions.normal]!;
-
-  const aspectRatio =
-    MMDLoadDetails.resolutions.swappedAspectRatio &&
-    typeof resolution.ratio === "number"
-      ? 1 / resolution.ratio
-      : resolution.ratio;
-
-  const width = MMDLoadDetails.resolutions.swappedAspectRatio
-    ? resolution.height()
-    : resolution.width();
-  const height = MMDLoadDetails.resolutions.swappedAspectRatio
-    ? resolution.width()
-    : resolution.height();
-
-  return (
+  // Built first and wrapped below, so the JSX keeps its indentation.
+  const content = (
     <div
       style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
     >
@@ -430,18 +568,28 @@ function Mmd(props: {
         ref={rootRef}
         style={{
           width: "100%",
-          backgroundColor: "green",
+          backgroundColor: "#000",
+          color: playerTheme.palette.text.primary,
+          fontFamily: playerTheme.typography.fontFamily,
           maxWidth: props.maxWidth,
           maxHeight: props.maxHeight,
-          aspectRatio: aspectRatio,
           position: "relative",
           overflow: "hidden",
         }}
+        onKeyDown={onKeyDown}
+        onPointerDownCapture={(event) => {
+          if (
+            event.pointerType === "touch" &&
+            (event.target as Element).matches("canvas.mmd-render")
+          )
+            setPanels((p) =>
+              p.tools || p.morphs ? { ...p, tools: false, morphs: false } : p,
+            );
+        }}
+        {...autoHide.handlers}
       >
         <canvas
           className="mmd-render"
-          width={width} // width="1280px"
-          height={height} // height="720px"
           style={{
             display: "block",
             pointerEvents: ready ? undefined : "none",
@@ -453,65 +601,41 @@ function Mmd(props: {
           }}
         />
         <div style={{ display: ready ? undefined : "none" }}>
-          <div style={{ position: "absolute", left: 0, top: 0, zIndex: 100 }}>
-            <button
-              type="button"
-              className="flight-speed"
-              style={{ padding: "2px" }}
-            >
-              Speed: unknown
-            </button>
-          </div>
-          <ControlsDrawer
-            ready={ready}
-            toggleMobile={() => {}}
-            player={player}
+          <TopBar
+            visible={autoHide.visible}
+            onTools={() => togglePanel("tools")}
+            onMorphs={() => togglePanel("morphs")}
+            onHelp={() => togglePanel("help", true)}
+            onDebug={
+              props.noDebug
+                ? undefined
+                : () => setMMDLoadDetailsPreviewShow(true)
+            }
+            onExit={exitPlayer}
           />
-          <MorphDrawer ready={ready} mobile={true} player={player} />
-          <ExplainControlsButton />
-          <div
-            style={{
-              top: 0,
-              left: 0,
-              right: 0,
-              margin: "auto",
-              width: "300px",
-              position: "absolute",
-            }}
-          >
-            <Button
-              variant="outlined"
-              onClick={() => {
-                document.removeEventListener(
-                  "fullscreenchange",
-                  onFullscreenChange,
-                );
-                player.runtime?.dispose();
-                setReady(false);
-              }}
-              sx={{ m: 1, width: "100%" }}
-            >
-              KILL
-            </Button>
-          </div>
-          <Box
-            sx={{
-              display: props.noDebug ? "none" : "flex",
-              gap: "8px",
-              top: "80px",
-              right: 0,
-              position: "absolute",
-              marginTop: "8px",
-              flexDirection: "column",
-            }}
-          >
-            <Button
-              variant="outlined"
-              onClick={() => setMMDLoadDetailsPreviewShow(true)}
-            >
-              Debug
-            </Button>
-          </Box>
+          {sceneLoaded && <OptionWheel root={rootRef} actions={wheelActions} />}
+          {sceneLoaded && (
+            <PlaybackBar player={player} visible={autoHide.visible} />
+          )}
+          {ready && (
+            <ControlsDrawer
+              ready={ready}
+              open={panels.tools}
+              onClose={() => togglePanel("tools", false)}
+              player={player}
+            />
+          )}
+          <MorphDrawer
+            ready={ready}
+            open={panels.morphs}
+            onClose={() => togglePanel("morphs", false)}
+            player={player}
+            focusFilter={morphSearch}
+          />
+          <ExplainControlsDialog
+            open={panels.help}
+            onClose={() => togglePanel("help", false)}
+          />
         </div>
         <div
           style={{
@@ -525,7 +649,11 @@ function Mmd(props: {
           <AppBar position="static">
             <Tabs
               value={startingTab}
-              onChange={(_, i) => setStartingTab(i)}
+              onChange={(_, tab) =>
+                tab === "fullscreen"
+                  ? toggleFullscreen(rootRef.current)
+                  : setStartingTab(tab)
+              }
               indicatorColor="secondary"
               textColor="inherit"
               variant="fullWidth"
@@ -533,9 +661,16 @@ function Mmd(props: {
             >
               <Tab value="play" label="Play" />
               <Tab value="presets" label="Presets" />
-              <Tab value="customize" label="Customize" />
-              <Tab value="fileBrowser" label="FileBrowser" />
-              <Tab value="???" label="???" />
+              <Tab value="customize" label="Scene" />
+              <Tab value="fileBrowser" label="Files" />
+              {/* <Tab value="???" label="???" /> */}
+              <Tab
+                value="fullscreen"
+                icon={<FullscreenIcon />}
+                aria-label="Fullscreen"
+                title="Fullscreen"
+                sx={{ flex: "none", minWidth: 56 }}
+              />
             </Tabs>
           </AppBar>
           {startingTab === "play" && (
@@ -548,53 +683,23 @@ function Mmd(props: {
                 }}
               >
                 <ResolutionSelector player={player} />
-                <div>
-                  <button
-                    type="button"
-                    style={{ padding: "16px", margin: "8px" }}
-                    onClick={(event) => {
-                      MMDLoadDetails.useBulletPhysics =
-                        !MMDLoadDetails.useBulletPhysics;
-                      event.currentTarget.innerText =
-                        MMDLoadDetails.useBulletPhysics
-                          ? "Bullet Engine"
-                          : "Light Engine";
-                    }}
-                  >
-                    {MMDLoadDetails.useBulletPhysics
-                      ? "Bullet Engine"
-                      : "Light Engine"}
-                  </button>
-                  <button
-                    type="button"
-                    style={{ padding: "16px", margin: "8px" }}
-                    onClick={(event) => {
-                      MMDLoadDetails.useAdvanceRendering =
-                        !MMDLoadDetails.useAdvanceRendering;
-                      event.currentTarget.innerText =
-                        MMDLoadDetails.useAdvanceRendering
-                          ? "Advance Rendering"
-                          : "Default Rendering";
-                    }}
-                  >
-                    {MMDLoadDetails.useAdvanceRendering
-                      ? "Advance Rendering"
-                      : "Default Rendering"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      MMDLoadDetails.offsetCharacters =
-                        !MMDLoadDetails.offsetCharacters;
-                      MMDUpdatePreview();
-                    }}
-                    style={{ padding: "16px", margin: "8px" }}
-                  >
-                    {MMDLoadDetails.offsetCharacters
-                      ? "Offsetting Characters"
-                      : "Stacking Characters"}
-                  </button>
-                </div>
+                <Stack sx={{ m: 1 }}>
+                  {startOptions.map(([option, label]) => (
+                    <FormControlLabel
+                      key={option}
+                      label={label}
+                      control={
+                        <Switch
+                          defaultChecked={MMDLoadDetails[option]}
+                          onChange={(_, checked) => {
+                            MMDLoadDetails[option] = checked;
+                            MMDUpdatePreview();
+                          }}
+                        />
+                      }
+                    />
+                  ))}
+                </Stack>
               </div>
             </Box>
           )}
@@ -615,6 +720,46 @@ function Mmd(props: {
                     Preset Loaded: {selected ? selected : "None"}
                   </Typography>
                 </Box>
+                {props.onSavePreset && (
+                  <Stack
+                    direction="row"
+                    gap={1}
+                    justifyContent="center"
+                    sx={{ width: "100%" }}
+                  >
+                    <Button
+                      variant="outlined"
+                      disabled={!selected}
+                      onClick={() => {
+                        const index = Number(selected);
+                        const current = presets.current[index];
+                        if (!current) return;
+                        setSaving({
+                          index,
+                          preset: {
+                            ...buildPreset(MMDLoadDetails),
+                            id: current.id,
+                            title: current.title,
+                            subTitle: current.subTitle,
+                          },
+                        });
+                      }}
+                    >
+                      Save to current preset
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={() =>
+                        setSaving({
+                          index: null,
+                          preset: buildPreset(MMDLoadDetails),
+                        })
+                      }
+                    >
+                      Save as new preset
+                    </Button>
+                  </Stack>
+                )}
                 {presets.current.map((preset, index) => {
                   return (
                     <Box
@@ -669,6 +814,21 @@ function Mmd(props: {
                           MMDLoadDetails.focusedModel = preset.focusedModel;
                         else MMDLoadDetails.focusedModel = 0;
 
+                        const defaults = new MMDLoadDetailsClass();
+                        MMDLoadDetails.controller.frameOffset.camera =
+                          preset.cameraPlayOffset ?? 0;
+                        MMDLoadDetails.cameraType =
+                          preset.cameraType ?? defaults.cameraType;
+                        MMDLoadDetails.zCamOffset = {
+                          ...defaults.zCamOffset,
+                          ...preset.cameraOffset,
+                        };
+                        MMDLoadDetails.directLight =
+                          preset.directLight ?? defaults.directLight;
+                        MMDLoadDetails.loop = preset.loop ?? defaults.loop;
+                        MMDLoadDetails.playbackRate =
+                          preset.playbackRate ?? defaults.playbackRate;
+
                         if (preset.entities)
                           MMDLoadDetails.entities = JSON.parse(
                             JSON.stringify(preset.entities),
@@ -691,10 +851,6 @@ function Mmd(props: {
                             JSON.stringify(preset.actionMemory),
                           );
                         else MMDLoadDetails.actionMemory = [];
-                        rootRef.current!.querySelector<HTMLInputElement>(
-                          ".model-offset-input input",
-                        )!.value =
-                          `${MMDLoadDetails.controller.frameOffset.model}`;
                         MMDUpdatePreview();
                         setSelected(String(index));
                       }}
@@ -711,7 +867,7 @@ function Mmd(props: {
                         {preset.subTitle}
                       </Typography>
                       {preset.entities?.map((entity, i) =>
-                        entity ? (
+                        entity && entity.model ? (
                           <Typography
                             key={i}
                             sx={{ textAlign: "center", fontSize: "0.5rem" }}
@@ -734,157 +890,15 @@ function Mmd(props: {
             </Box>
           )}
           {startingTab === "customize" && (
-            <Box sx={{ p: 1 }}>
-              <div
-                style={{
-                  display: "flex",
-                  width: "100%",
-                  gap: "8px",
-                  justifyContent: "center",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <p style={{ textAlign: "center" }}>AUDIO</p>
-                  <input
-                    type="text"
-                    className="music-input"
-                    style={{ padding: "8px" }}
-                  />
-                  <button
-                    type="button"
-                    style={{ padding: "8px" }}
-                    onClick={() => {
-                      const value =
-                        rootRef.current!.querySelector<HTMLInputElement>(
-                          "input.music-input",
-                        )!.value;
-                      MMDLoadDetails.music = value;
-                      const [audio, image] = props.loadAudioMeta(value);
-                      MMDLoadDetails.musicRaw = audio;
-                      MMDLoadDetails.thumbnail = image;
-                      MMDUpdatePreview();
-                    }}
-                  >
-                    Audio Fetch
-                  </button>
-                </div>
-                <Button
-                  variant="contained"
-                  onClick={() => {
-                    MMDLoadDetails.music = "";
-                    MMDLoadDetails.musicRaw = "";
-
-                    MMDLoadDetails.entities = [];
-                    MMDLoadDetails.entitiesData = [];
-                    MMDLoadDetails.entitiesOffset = [];
-                    MMDLoadDetails.entitiesAngle = [];
-                    MMDLoadDetails.focusedModel = 0;
-                    MMDLoadDetails.maxModelFocus = 5;
-                    MMDLoadDetails.stagePMX = "";
-                    MMDLoadDetails.stageFolder = "";
-                    MMDLoadDetails.vmdCamera = "";
-                    MMDLoadDetails.actionMemory = [];
-
-                    setSelected("");
-                    refreshPage();
-                  }}
-                >
-                  Reset
-                </Button>
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  <p>maxModelFocus</p>
-                  <Button
-                    variant="contained"
-                    onClick={() => {
-                      MMDLoadDetails.maxModelFocus = Math.max(
-                        0,
-                        MMDLoadDetails.maxModelFocus - 1,
-                      );
-                      refreshPage();
-                    }}
-                  >
-                    -1
-                  </Button>
-                  <br />
-                  <Button
-                    variant="contained"
-                    onClick={() => {
-                      MMDLoadDetails.maxModelFocus += 1;
-                      refreshPage();
-                    }}
-                  >
-                    +1
-                  </Button>
-                </Box>
-              </div>
-              <Box
-                sx={() => ({
-                  display: ready ? "none" : "flex",
-                  width: "100%",
-                  padding: "8px",
-                  flexDirection: "column",
-                })}
-              >
-                <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-                  <Tabs
-                    value={selectedTab}
-                    onChange={(_, newValue) => {
-                      setSelectedTab(newValue);
-                    }}
-                  >
-                    <Tab label="Chara" id={`${styleID}-tab-1`} />
-                    <Tab label="Stage" id={`${styleID}-tab-2`} />
-                    <Tab label="Dance" id={`${styleID}-tab-3`} />
-                    <Tab label="Cam" id={`${styleID}-tab-4`} />
-                    <Tab label="Parts" id={`${styleID}-tab-5`} />
-                  </Tabs>
-                </Box>
-                <Box
-                  sx={(theme) => ({
-                    border: `1px solid ${theme.palette.text.primary}`,
-                    display: "flex",
-                    flexDirection: "column",
-                    marginRight: "8px",
-                    flex: 1,
-                    borderRadius: "16px",
-                    padding: "8px 0px",
-                    height: 500,
-                    overflow: "auto",
-                  })}
-                >
-                  <SimpleTreeViewSearchable
-                    mmdDetails={mmdDetails}
-                    basePath={props.basePathMMD}
-                    updatePreview={MMDUpdatePreview}
-                    selectedTab={selectedTab}
-                    player={player}
-                  />
-                </Box>
-              </Box>
-              <div
-                style={{
-                  display: ready ? "none" : "flex",
-                  width: "100%",
-                  padding: "8px",
-                }}
-              >
-                <Button
-                  variant="contained"
-                  fullWidth
-                  onClick={() => {
-                    // update MMD LIST
-                  }}
-                >
-                  Server Refresh
-                </Button>
-              </div>
-            </Box>
+            <SceneCustomizer
+              player={player}
+              files={mmdDetails}
+              basePath={props.basePathMMD}
+              loadAudioMeta={props.loadAudioMeta}
+              onChange={refreshPage}
+              onReset={() => setSelected("")}
+              onRefreshFiles={loadFiles}
+            />
           )}
           {startingTab === "fileBrowser" && (
             <Box
@@ -910,7 +924,7 @@ function Mmd(props: {
               </Box>
             </Box>
           )}
-          {startingTab === "???" && <Box sx={{ p: 3 }}>???</Box>}
+          {/* {startingTab === "???" && <Box sx={{ p: 3 }}>???</Box>} */}
         </div>
 
         <div
@@ -967,9 +981,28 @@ function Mmd(props: {
           open={MMDLoadDetailsPreviewShow}
           updatePreview={MMDUpdatePreview}
         />
+        {saving && (
+          <SavePresetDialog
+            preset={saving.preset}
+            isNew={saving.index === null}
+            onCancel={() => setSaving(null)}
+            onSave={async (preset) => {
+              const isNew = saving.index === null;
+              if (!(await props.onSavePreset?.(preset, isNew))) return false;
+              if (saving.index === null) {
+                presets.current.push(preset);
+                setSelected(String(presets.current.length - 1));
+              } else presets.current[saving.index] = preset;
+              setSaving(null);
+              refreshPage();
+              return true;
+            }}
+          />
+        )}
       </div>
     </div>
   );
+  return <ThemeProvider theme={playerTheme}>{content}</ThemeProvider>;
 }
 //#endregion
 

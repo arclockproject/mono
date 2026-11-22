@@ -1,284 +1,188 @@
 //#region Imports
 
-import { Box, Button, InputAdornment, TextField } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import { useState } from "react";
+import {
+  Button,
+  ButtonGroup,
+  FormControlLabel,
+  InputAdornment,
+  Stack,
+  Switch,
+  TextField,
+  Typography,
+} from "@mui/material";
+import type { ReactNode } from "react";
 import type { JSX } from "react/jsx-runtime";
-import { type MMDPlayer, overlay90 } from "./config";
+import type { MMDPlayer } from "./config";
+import { SidePanel } from "./SidePanel";
 
 //#endregion
 
 //#region ControlsDrawer.tsx
 
+/** Camera buttons: the axis they move along, and the labels for − and +. */
+const cameraMoves = [
+  ["y", "Lower", "Higher"],
+  ["x", "Left", "Right"],
+  ["z", "Back", "Forward"],
+] as const;
+
+/**
+ * Toggles fullscreen on the player, so the bars and panels stay visible.
+ * Turns it off if anything is fullscreen.
+ */
+const toggleFullscreen = (root: HTMLElement | null): void => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else root?.requestFullscreen();
+};
+
+function Section(props: { title: string; children: ReactNode }): JSX.Element {
+  return (
+    <Stack gap={1} sx={{ px: 2, py: 1.5 }}>
+      <Typography variant="overline" color="text.secondary" lineHeight={1.5}>
+        {props.title}
+      </Typography>
+      {props.children}
+    </Stack>
+  );
+}
+
+/** A number field in frames. Ignores input that isn't a number. */
+function FrameField(props: {
+  label: string;
+  value: number;
+  onChange: (frames: number) => void;
+}): JSX.Element {
+  return (
+    <TextField
+      size="small"
+      type="number"
+      defaultValue={props.value}
+      label={props.label}
+      onChange={(e) => {
+        const frames = parseInt(e.target.value, 10);
+        if (!Number.isNaN(frames)) props.onChange(frames);
+      }}
+      slotProps={{
+        input: {
+          endAdornment: <InputAdornment position="end">frames</InputAdornment>,
+        },
+      }}
+    />
+  );
+}
+
+/** The left "Tools" panel: camera, lighting, sync and display options. */
 function ControlsDrawer(props: {
   ready: boolean;
-  toggleMobile: () => void;
+  open: boolean;
+  onClose: () => void;
   player: MMDPlayer;
 }): JSX.Element {
-  const [isHidden, setHidden] = useState(true);
   const { MMDLoadDetails, root } = props.player;
-  const theme = useTheme();
+  const { controller } = MMDLoadDetails;
+  const moveCamera = (axis: "x" | "y" | "z", by: number) => {
+    MMDLoadDetails.zCamOffset[axis] += by;
+  };
+  const setDirectLight = (on: boolean) => {
+    MMDLoadDetails.directLight = on;
+    if (controller.directionalLight)
+      controller.directionalLight.intensity = on ? 1 : 0;
+    if (controller.hemisphericLight)
+      controller.hemisphericLight.intensity = on ? 0 : 1;
+  };
+  const forceMobileResolution = () => {
+    const canvas =
+      root.current!.querySelector<HTMLCanvasElement>("canvas.mmd-render")!;
+    const landscape = window.screen.orientation.type.startsWith("landscape");
+    const { availWidth, availHeight } = window.screen;
+    if (root.current!.contains(document.fullscreenElement)) {
+      canvas.width = availWidth + (landscape ? -50 : 0);
+      canvas.height = availHeight + (landscape ? 0 : -50);
+    } else {
+      canvas.width = availWidth / 1.5;
+      canvas.height = availHeight / 1.5;
+    }
+  };
   return (
-    <Box
-      sx={{
-        display: props.ready ? "flex" : "none",
-        position: "absolute",
-        left: isHidden ? "-300px" : 0,
-        transition: theme.transitions.create(["left"]),
-        top: "50px",
-        bottom: 0,
-        margin: "auto",
-        height: "calc(100% - 50px)",
-        zIndex: 100,
-        gap: "8px",
-        maxHeight: "600px",
-        width: "300px",
-        flexDirection: "column",
-        background: overlay90,
-      }}
+    <SidePanel
+      side="left"
+      title="Tools"
+      maxWidth={300}
+      open={props.ready && props.open}
+      onClose={props.onClose}
     >
-      <Button
-        variant="contained"
-        color="info"
-        sx={{
-          right: isHidden ? "-60px" : 0,
-          justifyContent: isHidden ? "right" : undefined,
-          transition: theme.transitions.create(["right"]),
-        }}
-        onClick={() => {
-          setHidden(!isHidden);
-        }}
-      >
-        {isHidden ? `>` : "Hide panel"}
-      </Button>
-      <div
-        style={{
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {/* <Button
-        onClick={() => {
-          const scene = MMDLoadDetails.controller.scene;
-          if (scene) scene.gravity.y = scene.gravity.y === 0 ? -98 : 0;
-        }}
-      >
-        Toggle Gravity
-      </Button> */}
-        <Button
-          className="toggle-cameras"
-          style={{ padding: "8px", margin: "8px" }}
-        >
+      <Section title="Camera">
+        {/* Its text and click handler are set by SceneBuilderSplit. */}
+        <Button className="toggle-cameras" variant="contained">
           Toggle Cameras
         </Button>
-
-        <Button
-          onClick={() => {
-            //   const canvasRoot = document.querySelector<HTMLCanvasElement>(
-            //     "div#mmd-render-root"
-            //   )!;
-            const canvas =
-              root.current!.querySelector<HTMLCanvasElement>(
-                "canvas.mmd-render",
-              )!;
-            const widthOffset = window.screen.orientation.type.startsWith(
-              "landscape",
-            )
-              ? -50
-              : 0;
-            const heightOffset = window.screen.orientation.type.startsWith(
-              "landscape",
-            )
-              ? 0
-              : -50;
-            if (document.fullscreenElement) {
-              canvas.width = window.screen.availWidth + widthOffset;
-              canvas.height = window.screen.availHeight + heightOffset;
-            } else {
-              canvas.width = window.screen.availWidth / 1.5;
-              canvas.height = window.screen.availHeight / 1.5;
-            }
-          }}
-          style={{ padding: "8px", margin: "8px" }}
-        >
-          Force Mobile
-        </Button>
-        <Button
-          onClick={() => {
-            root
-              .current!.querySelectorAll<HTMLSpanElement>(
-                ":scope > div:nth-child(1) > div:nth-child(5) > div:nth-child(1) > div:nth-child(2) > div:nth-child(1) > span",
-              )
-              .forEach((e) => {
-                e.style.display = "none";
-              });
-            // const canvasRoot = document.querySelector<HTMLCanvasElement>("div#mmd-render-root")!;
-            // const canvas = document.querySelector<HTMLCanvasElement>("canvas#mmd-render")!;
-            // const widthOffset = window.screen.orientation.type.startsWith("landscape") ? -400 : 0;
-            // const heightOffset = window.screen.orientation.type.startsWith("landscape") ? 0 : -400;
-            // if (document.fullscreenElement) {
-            //   canvasRoot.style.width = window.screen.availWidth * 4 + widthOffset + "px";
-            //   canvasRoot.style.height = window.screen.availHeight * 4 + heightOffset + "px";
-            //   canvas.width = window.screen.availWidth * 4 + widthOffset;
-            //   canvas.height = window.screen.availHeight * 4 + heightOffset;
-            // } else {
-            //   canvasRoot.style.width = (window.screen.availWidth * 4) / 1.5 + widthOffset + "px";
-            //   canvasRoot.style.height = (window.screen.availHeight * 4) / 1.5 + heightOffset + "px";
-            //   canvas.width = (window.screen.availWidth * 4) / 1.5 + widthOffset;
-            //   canvas.height = (window.screen.availHeight * 4) / 1.5 + heightOffset;
-            // }
-          }}
-          style={{ padding: "8px", margin: "8px" }}
-        >
-          Hide Time
-        </Button>
-        <Button
-          onClick={() => {
-            root
-              .current!.querySelector<HTMLButtonElement>(
-                ":scope > div:nth-child(1) > div:nth-child(5) > div:nth-child(1) > div:nth-child(2) > div:nth-child(2) > button:nth-child(3)",
-              )
-              ?.click();
-          }}
-          style={{ padding: "8px", margin: "8px" }}
-        >
-          Go FullScreen
-        </Button>
-        <div style={{ display: "flex" }}>
-          <Button
-            sx={{ flex: 1, padding: "16px" }}
-            fullWidth
-            onClick={() => {
-              MMDLoadDetails.zCamOffset.y -= 2;
-            }}
-          >
-            Lower
-          </Button>
-          <Button
-            sx={{ flex: 1, padding: "16px" }}
-            fullWidth
-            onClick={() => {
-              MMDLoadDetails.zCamOffset.y += 2;
-            }}
-          >
-            Higher
-          </Button>
-        </div>
-        <div style={{ display: "flex" }}>
-          <Button
-            sx={{ flex: 1, padding: "16px" }}
-            fullWidth
-            onClick={() => {
-              MMDLoadDetails.zCamOffset.x -= 2;
-            }}
-          >
-            Left
-          </Button>
-          <Button
-            sx={{ flex: 1, padding: "16px" }}
-            fullWidth
-            onClick={() => {
-              MMDLoadDetails.zCamOffset.x += 2;
-            }}
-          >
-            right
-          </Button>
-        </div>
-        <div style={{ display: "flex" }}>
-          <Button
-            sx={{ flex: 1, padding: "16px" }}
-            fullWidth
-            onClick={() => {
-              MMDLoadDetails.zCamOffset.z -= 2;
-            }}
-          >
-            Back
-          </Button>
-          <Button
-            sx={{ flex: 1, padding: "16px" }}
-            fullWidth
-            onClick={() => {
-              MMDLoadDetails.zCamOffset.z += 2;
-            }}
-          >
-            Forward
-          </Button>
-        </div>
-        <div style={{ display: "flex" }}>
-          <Button
-            sx={{ flex: 1, padding: "16px" }}
-            fullWidth
-            onClick={() => {
-              if (MMDLoadDetails.controller.directionalLight)
-                MMDLoadDetails.controller.directionalLight.intensity = 1;
-              if (MMDLoadDetails.controller.hemisphericLight)
-                MMDLoadDetails.controller.hemisphericLight.intensity = 0;
-            }}
-          >
-            Enable DirectLight
-          </Button>
-          <Button
-            sx={{ flex: 1, padding: "16px" }}
-            fullWidth
-            onClick={() => {
-              if (MMDLoadDetails.controller.directionalLight)
-                MMDLoadDetails.controller.directionalLight.intensity = 0;
-              if (MMDLoadDetails.controller.hemisphericLight)
-                MMDLoadDetails.controller.hemisphericLight.intensity = 1;
-            }}
-          >
-            Disable DirectLight
-          </Button>
-        </div>
-
-        <TextField
-          sx={{ minWidth: "150px", background: "white", mt: 1 }}
-          variant="outlined"
-          className="model-offset-input"
-          label="Model Offset"
-          defaultValue={0}
-          type="number"
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
-            if (!Number.isNaN(val))
-              MMDLoadDetails.controller.frameOffset.model = val;
-          }}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">frame</InputAdornment>
-              ),
-            },
+        <Typography variant="caption" color="text.secondary">
+          Position relative to the focused character
+        </Typography>
+        {cameraMoves.map(([axis, less, more]) => (
+          <ButtonGroup key={axis} fullWidth size="small">
+            <Button onClick={() => moveCamera(axis, -2)}>{less}</Button>
+            <Button onClick={() => moveCamera(axis, 2)}>{more}</Button>
+          </ButtonGroup>
+        ))}
+      </Section>
+      <Section title="Lighting">
+        <ButtonGroup fullWidth size="small">
+          <Button onClick={() => setDirectLight(true)}>Direct light</Button>
+          <Button onClick={() => setDirectLight(false)}>Ambient light</Button>
+        </ButtonGroup>
+      </Section>
+      <Section title="Sync">
+        <FrameField
+          label="Model offset"
+          value={controller.frameOffset.model}
+          onChange={(frames) => {
+            controller.frameOffset.model = frames;
           }}
         />
-        <TextField
-          sx={{ minWidth: "150px", background: "white", mt: 1 }}
-          variant="outlined"
-          label="Camera Offset"
-          defaultValue={0}
-          type="number"
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
-            if (!Number.isNaN(val))
-              MMDLoadDetails.controller.frameOffset.camera = val;
-          }}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">frame</InputAdornment>
-              ),
-            },
+        <FrameField
+          label="Camera offset"
+          value={controller.frameOffset.camera}
+          onChange={(frames) => {
+            controller.frameOffset.camera = frames;
           }}
         />
-        <div style={{ display: "flex" }} className="auto-item-tick-time">
+        <FormControlLabel
+          label="Loop"
+          control={
+            <Switch
+              defaultChecked={MMDLoadDetails.loop}
+              onChange={(_, on) => {
+                MMDLoadDetails.loop = on;
+              }}
+            />
+          }
+        />
+      </Section>
+      <Section title="Display">
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => toggleFullscreen(root.current)}
+        >
+          Fullscreen
+        </Button>
+        <Button variant="outlined" size="small" onClick={forceMobileResolution}>
+          Force mobile resolution
+        </Button>
+        {/* Frame time, written by SceneBuilderSplit. */}
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          className="auto-item-tick-time"
+        >
           <span></span>
-        </div>
-      </div>
-    </Box>
+        </Typography>
+      </Section>
+    </SidePanel>
   );
 }
 
 //#endregion
 
-export { ControlsDrawer };
+export { ControlsDrawer, toggleFullscreen };

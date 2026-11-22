@@ -1,0 +1,95 @@
+---
+title: Reader
+description: "A book reader with single page, double page and scroll views, zoom and bookmarks."
+---
+
+## Dependencies {#dependencies}
+
+```bash npm2yarn
+npm install @mui/material @mui/icons-material @emotion/react @emotion/styled react-virtuoso
+```
+
+## Usage {#usage}
+
+```tsx
+import { Reader } from "@arclockproject/common/components/Reader";
+```
+
+- Tap or click the left or right side to turn the page, and the middle to show the top and bottom
+  bars. Double-tap a page to zoom it, and long-press it (or right-click with a mouse) for its
+  buttons.
+- With focus on the reader, the arrow keys turn the page, `F` toggles fullscreen, `L` toggles the
+  bookmark of the current page, and `Escape` closes the settings or the zoomed page.
+- The view (single page, double page or scroll), reading direction, alignment and preload range
+  can be changed in the settings.
+- Page URLs are cached per `id`. Change `id` when the pages change.
+- It is `100vh` tall by default. Set `style.root.sx` to change that.
+
+The examples below are live. Edit the code to try your own values.
+
+### A book {#a-book}
+
+Click the middle of the reader to show the bars and the settings.
+
+```tsx live
+function Book() {
+  const items = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, i) => ({
+        url: `${REMOTE.base}/${i % 2 === 0 ? "PXQZNGjZIFo" : "jkZ53T1Pu7k"}.webp`,
+      })),
+    [],
+  );
+  return (
+    <Reader
+      id="docs-book"
+      title="Demo book"
+      data={{ items }}
+      cache={{ range: 2, clearOnIDChange: true }}
+      style={{ root: { sx: { height: 500 } } }}
+    />
+  );
+}
+```
+
+### Bookmarks and the current page {#bookmarks-and-the-current-page}
+
+With `bookmarks`, each page gets a bookmark button, and the top bar gets a button that pages
+through only the bookmarks. `onPageChange` reports the page, so you can save it and pass it back as
+`defaultPage` next time.
+
+```tsx live
+function BookmarkedBook() {
+  const [page, setPage] = useState(0);
+  const [bookmarks, setBookmarks] = useState([2]);
+  const items = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, i) => ({
+        url: `${REMOTE.base}/${i % 2 === 0 ? "PXQZNGjZIFo" : "jkZ53T1Pu7k"}.webp`,
+      })),
+    [],
+  );
+  const toggle = (p) =>
+    setBookmarks(bookmarks.includes(p) ? bookmarks.filter((b) => b !== p) : [...bookmarks, p]);
+
+  return (
+    <div>
+      <p>
+        Page <code>{page + 1}</code>, bookmarks <code>{JSON.stringify(bookmarks.map((b) => b + 1))}</code>
+      </p>
+      <Reader
+        id="docs-bookmarked-book"
+        data={{ items }}
+        cache={{ range: 2, clearOnIDChange: true }}
+        onPageChange={setPage}
+        bookmarks={{ pages: bookmarks, toggle }}
+        style={{ root: { sx: { height: 500 } } }}
+      />
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [Reader API reference](/docs/api/common/components/Reader) for every prop, method and type.

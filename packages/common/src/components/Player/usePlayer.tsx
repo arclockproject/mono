@@ -27,11 +27,11 @@ const _getPlayerContext = <metaType, listMetaType>() => {
  *
  * Most actions are controlled by passing data to `<VideoPlayer ...>` or by the user
  * when interacting with components. Please use that instead.
- * 
+ *
  * **Warning**: For compatibility reasons, `player.internal` is exposed to allow for direct
  * interaction with the player. Those might have side-effects and should be avoided
  * if possible. As they might be changed without warning in a patch or minor update.
- * 
+ *
  * @see {@link https://arclockproject.org/docs/common/components/Player Guide} | {@link https://arclockproject.org/docs/api/common/components/Player API}
  * @example
  * const player = usePlayer();

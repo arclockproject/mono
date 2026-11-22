@@ -18,78 +18,6 @@ import { updateCanvasResolution } from "./Mmd";
 
 //#region ResolutionSelector.tsx
 
-/**
- * @private
- */
-type validResolution = {
-  label: string;
-  height: () => number;
-  width: () => number;
-  ratio: number | "auto";
-};
-
-const validResolutions: validResolution[] = [
-  {
-    label: "Screen Size",
-    width: () => window.screen.availWidth,
-    height: () => window.screen.availHeight,
-    ratio: "auto",
-  },
-  {
-    label: "Screen Size / 1.5",
-    width: () => Math.floor(window.screen.availWidth / 1.5),
-    height: () => Math.floor(window.screen.availHeight / 1.5),
-    ratio: "auto",
-  },
-  {
-    label: "4k",
-    width: () => 3840,
-    height: () => 2160,
-    ratio: 16 / 9,
-  },
-  {
-    label: "1440p",
-    width: () => 2560,
-    height: () => 1440,
-    ratio: 16 / 9,
-  },
-  {
-    label: "1080p",
-    width: () => 1920,
-    height: () => 1080,
-    ratio: 16 / 9,
-  },
-  {
-    label: "SteamDeck",
-    width: () => 1280,
-    height: () => 800,
-    ratio: 16 / 10,
-  },
-  {
-    label: "720p",
-    width: () => 1280,
-    height: () => 720,
-    ratio: 16 / 9,
-  },
-  {
-    label: "480p",
-    width: () => 854,
-    height: () => 480,
-    ratio: 16 / 9,
-  },
-  {
-    label: "360p",
-    width: () => 640,
-    height: () => 360,
-    ratio: 16 / 9,
-  },
-  {
-    label: "240p",
-    width: () => 426,
-    height: () => 240,
-    ratio: 16 / 9,
-  },
-];
 const ResolutionSelector = ({ player }: { player: MMDPlayer }): JSX.Element => {
   const { MMDLoadDetails } = player;
   const id = useId();
@@ -130,7 +58,7 @@ const ResolutionSelector = ({ player }: { player: MMDPlayer }): JSX.Element => {
             updateCanvasResolution(player);
           }}
         >
-          {validResolutions.map((resolution, i) => (
+          {player.resolutions.map((resolution, i) => (
             <MenuItem value={i} key={resolution.label}>
               {resolution.label}
             </MenuItem>
@@ -153,7 +81,7 @@ const ResolutionSelector = ({ player }: { player: MMDPlayer }): JSX.Element => {
             updateCanvasResolution(player);
           }}
         >
-          {validResolutions.map((resolution, i) => (
+          {player.resolutions.map((resolution, i) => (
             <MenuItem value={i} key={resolution.label}>
               {resolution.label}
             </MenuItem>
@@ -166,6 +94,4 @@ const ResolutionSelector = ({ player }: { player: MMDPlayer }): JSX.Element => {
 
 //#endregion
 
-export type { validResolution };
-
-export { ResolutionSelector, validResolutions };
+export { ResolutionSelector };

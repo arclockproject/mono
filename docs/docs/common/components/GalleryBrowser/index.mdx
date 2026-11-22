@@ -1,0 +1,163 @@
+---
+title: GalleryBrowser
+description: "A paged gallery of images and videos with fullscreen, drag and zoom, and bookmarks."
+---
+
+## Dependencies {#dependencies}
+
+```bash npm2yarn
+npm install @mui/material @mui/icons-material @emotion/react @emotion/styled
+```
+
+## Usage {#usage}
+
+```tsx
+import { GalleryBrowser } from "@arclockproject/common/components/GalleryBrowser";
+```
+
+- Click the left or right quarter of the gallery to change page. Click the middle to show the
+  controls. Double-click it to drag and zoom in fullscreen.
+- With focus on the gallery, the arrow keys change page, `F` toggles fullscreen and `L` toggles
+  the bookmark of the current page.
+- Each page's URL is cached per `id`. Change `id` when the items change.
+
+The examples below are live. Edit the code to try your own values.
+
+### Full URLs {#full-urls}
+
+When every item has a full `url`, you don't need a `urlResolver`. Click the middle of the
+gallery to show the controls.
+
+```tsx live showLineNumbers
+<GalleryBrowser
+  id="full-urls"
+  backgroundBloom
+  useTwoResolutions={false}
+  cache={{ range: 2, clearOnIDChange: true }}
+  data={{
+    items: [
+      { url: `${REMOTE.base}/PXQZNGjZIFo.webp` },
+      { url: `${REMOTE.base}/jkZ53T1Pu7k.webp` },
+      { url: `${REMOTE.base}/PXQZNGjZIFo.mp4`, type: "video" },
+    ],
+  }}
+/>
+```
+
+### Unknown extensions {#unknown-extensions}
+
+Items can hold any data. Here they only have a file name. `urlResolver` turns it into a URL,
+and `extensionResolver` tries each extension until one loads. Add an extension that doesn't
+exist to the start of the list and the page still loads.
+
+```tsx live showLineNumbers
+<GalleryBrowser
+  id="unknown-extensions"
+  backgroundBloom
+  useTwoResolutions={false}
+  cache={{ range: 1, clearOnIDChange: true }}
+  data={{
+    items: [{ name: "PXQZNGjZIFo" }, { name: "jkZ53T1Pu7k" }],
+    urlResolver: async (item, index, isHD, extensionResolver) =>
+      extensionResolver(`${REMOTE.base}/${item?.name}`, ["png", "jpg", "webp"]),
+  }}
+/>
+```
+
+### Two resolutions {#two-resolutions}
+
+With `useTwoResolutions`, `urlResolver` is asked for SD or HD files, and an SD/HD button is
+added. By default, HD mode fetches only HD files, for the current page and the pages near it.
+With `loadSDFirst`, the SD file is shown first and the HD file replaces it once loaded. Nearby
+pages are then preloaded in SD.
+
+Both resolutions use the same file here. The list below the gallery shows which files were
+asked for. Turn `loadSDFirst` on and off, then change page.
+
+```tsx live noInline showLineNumbers
+function App() {
+  const [loadSDFirst, setLoadSDFirst] = useState(false);
+  const [log, setLog] = useState([]);
+  const files = ["PXQZNGjZIFo", "jkZ53T1Pu7k"];
+  return (
+    <>
+      <label>
+        <input
+          type="checkbox"
+          checked={loadSDFirst}
+          onChange={(event) => {
+            setLog([]);
+            setLoadSDFirst(event.target.checked);
+          }}
+        />{" "}
+        loadSDFirst
+      </label>
+      <GalleryBrowser
+        id={loadSDFirst ? "sd-first" : "hd-only"}
+        backgroundBloom={false}
+        useTwoResolutions
+        defaultHD
+        loadSDFirst={loadSDFirst}
+        cache={{ range: 1, clearOnIDChange: true }}
+        data={{
+          items: 6,
+          urlResolver: async (item, index, isHD) => {
+            setLog((old) => [...old, `${index + 1} ${isHD ? "HD" : "SD"}`]);
+            return `${REMOTE.base}/${files[index % 2]}.webp`;
+          },
+        }}
+      />
+      <p>Asked for: {log.join(", ")}</p>
+    </>
+  );
+}
+render(<App />);
+```
+
+### Bookmarks {#bookmarks}
+
+Pass `bookmarks` to add a heart button. You keep the list. `toggle` is called with the page to
+add or remove. While there are bookmarks, the folder button pages through only them. Remove the
+last bookmark and bookmark mode turns off.
+
+```tsx live noInline showLineNumbers
+function App() {
+  const [pages, setPages] = useState([1, 3]);
+  const [mode, setMode] = useState(true);
+  const files = ["PXQZNGjZIFo", "jkZ53T1Pu7k"];
+  return (
+    <>
+      <GalleryBrowser
+        id="bookmarks"
+        backgroundBloom={false}
+        useTwoResolutions={false}
+        cache={{ range: 1, clearOnIDChange: true }}
+        data={{
+          items: 5,
+          urlResolver: async (item, index) =>
+            `${REMOTE.base}/${files[index % 2]}.webp`,
+        }}
+        bookmarks={{
+          pages,
+          toggle: (page) =>
+            setPages((old) =>
+              old.includes(page)
+                ? old.filter((other) => other !== page)
+                : [...old, page].sort((a, b) => a - b),
+            ),
+          onModeChange: setMode,
+        }}
+      />
+      <p>
+        Bookmarked pages: {pages.map((page) => page + 1).join(", ") || "none"}.
+        Bookmark mode is {mode ? "on" : "off"}.
+      </p>
+    </>
+  );
+}
+render(<App />);
+```
+
+## API {#api}
+
+See the [GalleryBrowser API reference](/docs/api/common/components/GalleryBrowser) for every prop, method and type.

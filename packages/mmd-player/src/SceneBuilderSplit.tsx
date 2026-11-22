@@ -26,8 +26,8 @@ import {
 } from "@babylonjs/core/Actions/index.js";
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera.js";
 import { FlyCamera } from "@babylonjs/core/Cameras/flyCamera.js";
-import { Constants } from "@babylonjs/core/Engines/index.js";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine.js";
+import { Constants } from "@babylonjs/core/Engines/index.js";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight.js";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator.js";
 import {
@@ -39,8 +39,8 @@ import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector.js";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder.js";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode.js";
 import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin.js";
-import { SSRRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/index.js";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline.js";
+import { SSRRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/index.js";
 import { Scene } from "@babylonjs/core/scene.js";
 import havokPhysics from "@babylonjs/havok";
 import { ShadowOnlyMaterial } from "@babylonjs/materials/shadowOnly/shadowOnlyMaterial.js";
@@ -60,13 +60,12 @@ import ammoPhysics from "babylon-mmd/esm/Runtime/Physics/External/ammo.wasm.js";
 import { MmdAmmoJSPlugin } from "babylon-mmd/esm/Runtime/Physics/mmdAmmoJSPlugin.js";
 import { MmdAmmoPhysics } from "babylon-mmd/esm/Runtime/Physics/mmdAmmoPhysics.js";
 import { MmdPhysics } from "babylon-mmd/esm/Runtime/Physics/mmdPhysics.js";
-import { MmdPlayerControl } from "babylon-mmd/esm/Runtime/Util/mmdPlayerControl.js";
 import "@babylonjs/core/Rendering/depthRendererSceneComponent.js";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight.js";
 import type { MmdAnimation } from "babylon-mmd/esm/Loader/Animation/mmdAnimation.js";
 import type { MmdModel } from "babylon-mmd/esm/Runtime/mmdModel.js";
 import type { ISceneBuilder } from "./BaseRuntime";
-import type { MMDPlayer } from "./config";
+import { isAtEnd, type MMDPlayer, playOrRestart } from "./config";
 
 // import { number } from "zod";
 // import { PointLight } from "@babylonjs/core/Lights/pointLight.js";
@@ -154,7 +153,7 @@ class SceneBuilderSplit implements ISceneBuilder {
       new Vector3(0, 1, 0),
       scene,
     );
-    hemisphericLight.intensity = 0;
+    hemisphericLight.intensity = MMDLoadDetails.directLight ? 0 : 1;
     hemisphericLight.specular = new Color3(0, 0, 0);
     hemisphericLight.groundColor = new Color3(1, 1, 1);
     MMDLoadDetails.controller.hemisphericLight = hemisphericLight;
@@ -169,7 +168,7 @@ class SceneBuilderSplit implements ISceneBuilder {
       new Vector3(0.5, -1, 1),
       scene,
     );
-    directionalLight.intensity = 1;
+    directionalLight.intensity = MMDLoadDetails.directLight ? 1 : 0;
     // set frustum size manually for optimize shadow rendering
     directionalLight.autoCalcShadowZBounds = false;
     directionalLight.autoUpdateExtends = false;
@@ -232,6 +231,31 @@ class SceneBuilderSplit implements ISceneBuilder {
     audioPlayer.source = MMDLoadDetails.musicRaw; //"res/private_test/motion/melancholy_night/melancholy_night.mp3";
 
     mmdRuntimeMusic.setAudioPlayer(audioPlayer);
+    mmdRuntimeMusic.timeScale = MMDLoadDetails.playbackRate;
+    audioPlayer.onPlaybackRateChangedObservable.add(() => {
+      MMDLoadDetails.playbackRate = audioPlayer.playbackRate;
+    });
+    mmdRuntimeMusic.onPauseAnimationObservable.add(() => {
+      if (MMDLoadDetails.loop && isAtEnd(mmdRuntimeMusic))
+        playOrRestart(mmdRuntimeMusic);
+    });
+    let wakeLock: WakeLockSentinel | undefined;
+    const keepScreenOn = async () => {
+      if (!mmdRuntimeMusic.isAnimationPlaying || document.hidden) return;
+      if (wakeLock && !wakeLock.released) return;
+      wakeLock = await navigator.wakeLock
+        ?.request("screen")
+        .catch(() => undefined);
+      if (!mmdRuntimeMusic.isAnimationPlaying) wakeLock?.release();
+    };
+    const letScreenSleep = () => wakeLock?.release();
+    mmdRuntimeMusic.onPlayAnimationObservable.add(keepScreenOn);
+    mmdRuntimeMusic.onPauseAnimationObservable.add(letScreenSleep);
+    document.addEventListener("visibilitychange", keepScreenOn);
+    scene.onDisposeObservable.add(() => {
+      document.removeEventListener("visibilitychange", keepScreenOn);
+      letScreenSleep();
+    });
 
     // play before loading. this will cause the audio to play first before all assets are loaded.
     // playing the audio first can help ease the user's patience
@@ -287,13 +311,7 @@ class SceneBuilderSplit implements ISceneBuilder {
     MMDLoadDetails.controller.musicRuntime = mmdRuntimeMusic;
     MMDLoadDetails.controller.mainRuntime = mmdRuntime;
     MMDLoadDetails.controller.cameraRuntime = mmdRuntimeMusic;
-    // create player control
-    const mmdPlayerControl = new MmdPlayerControl(
-      scene,
-      mmdRuntimeMusic,
-      audioPlayer,
-    );
-    mmdPlayerControl.showPlayerControl();
+    MMDLoadDetails.controller.audioPlayer = audioPlayer;
     // show loading screen
     engine.displayLoadingUI();
 
@@ -350,36 +368,30 @@ class SceneBuilderSplit implements ISceneBuilder {
     ]);
 
     const mmdEntities = Promise.all(
-      MMDLoadDetails.entities.reduce(
-        (prev, entity, index) => {
-          const unionPromise: [
-            Promise<MmdAnimation> | undefined,
-            Promise<MmdMesh> | undefined,
-          ] = [
-            entity.movement
-              ? bvmdLoader.loadAsync(
-                  `motion ${index}`,
-                  entity.movement,
-                  (event) =>
-                    updateLoadingText(0, progress(event, `motion ${index}`)),
-                )
-              : undefined,
-            entity.model
-              ? SceneLoader.ImportMeshAsync(
-                  undefined,
-                  entity.model.folder,
-                  entity.model.file,
-                  scene,
-                  (event) =>
-                    updateLoadingText(1, progress(event, `model ${index}`)),
-                ).then((result) => result.meshes[0] as MmdMesh)
-              : undefined,
-          ];
-          prev.push(Promise.all(unionPromise));
-          return prev;
-        },
-        [] as Promise<[MmdAnimation | undefined, MmdMesh | undefined]>[],
-      ),
+      Array.from(MMDLoadDetails.entities, (entity, index) => {
+        const { movement, model } = entity ?? {};
+        const unionPromise: [
+          Promise<MmdAnimation> | undefined,
+          Promise<MmdMesh> | undefined,
+        ] = [
+          movement
+            ? bvmdLoader.loadAsync(`motion ${index}`, movement, (event) =>
+                updateLoadingText(0, progress(event, `motion ${index}`)),
+              )
+            : undefined,
+          model
+            ? SceneLoader.ImportMeshAsync(
+                undefined,
+                model.folder,
+                model.file,
+                scene,
+                (event) =>
+                  updateLoadingText(1, progress(event, `model ${index}`)),
+              ).then((result) => result.meshes[0] as MmdMesh)
+            : undefined,
+        ];
+        return Promise.all(unionPromise);
+      }),
     );
     const batch = await Promise.all([cameraAndStage, mmdEntities]);
     const [mmdAnimationCamera, stageMesh] = batch[0];
@@ -406,12 +418,19 @@ class SceneBuilderSplit implements ISceneBuilder {
       }),
     );
     let flightSpeedButton: { innerHTML: string } | Element | null =
-      root.querySelector("button.flight-speed");
+      root.querySelector(".flight-speed");
     if (!flightSpeedButton) flightSpeedButton = { innerHTML: "" };
+    let flash: Animation | undefined;
     const refUpdate = () => {
-      flightSpeedButton.innerHTML = `C:${camera.speed.toFixed(2)} x${audioPlayer.playbackRate.toFixed(3)} z${
+      flightSpeedButton.innerHTML = `Fly ${camera.speed.toFixed(2)} · ${audioPlayer.playbackRate.toFixed(2)}x · View ${
         scene.activeCamera?.maxZ
       }`;
+      flash?.cancel();
+      if ("animate" in flightSpeedButton)
+        flash = flightSpeedButton.animate(
+          [{ opacity: 0.85 }, { opacity: 0.85, offset: 0.7 }],
+          1500,
+        );
     };
     refUpdate();
     {
@@ -482,34 +501,36 @@ class SceneBuilderSplit implements ISceneBuilder {
             mmdModel.addAnimation(entity[0]);
             mmdModel.setAnimation(`motion ${index}`);
           }
-          liveModels.push(mmdModel);
-          MMDLoadDetails.modelMorph.push(mmdModel.morph);
+          liveModels[index] = mmdModel;
+          MMDLoadDetails.modelMorph[index] = mmdModel.morph;
           if (index === MMDLoadDetails.focusedModel) {
             // make sure directional light follow the model
+            let focusedModel = mmdModel;
             let bodyBone = mmdModel.runtimeBones.find(
               (bone) => bone.name === "センター",
             );
             const boneWorldMatrix = new Matrix();
             MMDLoadDetails.refocusModel = () => {
               const nextFocus = liveModels[MMDLoadDetails.focusedModel];
-              if (nextFocus)
+              if (nextFocus) {
+                focusedModel = nextFocus;
                 bodyBone = nextFocus.runtimeBones.find(
                   (bone) => bone.name === "センター",
                 );
+              }
             };
             scene.onBeforeRenderObservable.add(() => {
-              if (
-                scene.activeCamera === camera &&
-                MMDLoadDetails.startMode === "mobile"
-              ) {
-                bodyBone!
-                  .getWorldMatrixToRef(boneWorldMatrix)
-                  .multiplyToRef(modelMesh.getWorldMatrix(), boneWorldMatrix);
-                boneWorldMatrix.getTranslationToRef(camera.target);
-                camera.target.y += MMDLoadDetails.zCamOffset.y;
-                camera.target.z += -20 + MMDLoadDetails.zCamOffset.z;
-                camera.target.x += MMDLoadDetails.zCamOffset.x;
-              }
+              if (!bodyBone) return;
+              bodyBone
+                .getWorldMatrixToRef(boneWorldMatrix)
+                .multiplyToRef(
+                  focusedModel.mesh.getWorldMatrix(),
+                  boneWorldMatrix,
+                );
+              boneWorldMatrix.getTranslationToRef(cameraArc.target);
+              cameraArc.target.y += MMDLoadDetails.zCamOffset.y;
+              cameraArc.target.z += -20 + MMDLoadDetails.zCamOffset.z;
+              cameraArc.target.x += MMDLoadDetails.zCamOffset.x;
             });
           }
         }
@@ -524,14 +545,6 @@ class SceneBuilderSplit implements ISceneBuilder {
         }
       }
       scene.onBeforeRenderObservable.add(() => {
-        if (inputMap["f"]) {
-          camera.speed = Math.max(0.04, camera.speed * 0.95);
-          refUpdate();
-        }
-        if (inputMap["r"]) {
-          camera.speed = Math.min(50, camera.speed * 1.05);
-          refUpdate();
-        }
         if (inputMap["-"] && scene.activeCamera) {
           scene.activeCamera.maxZ = Math.max(
             scene.activeCamera.maxZ - 100,
@@ -646,8 +659,11 @@ class SceneBuilderSplit implements ISceneBuilder {
     const toggleCameraButton = root.querySelector<HTMLButtonElement>(
       "button.toggle-cameras",
     );
-    let cameraID = 0;
-    let cameraTypes = [mmdCamera, cameraFly, cameraArc];
+    const cameraTypes = [mmdCamera, cameraFly, cameraArc];
+    let cameraID = cameraTypes[MMDLoadDetails.cameraType]
+      ? MMDLoadDetails.cameraType
+      : 0;
+    scene.activeCamera = cameraTypes[cameraID]!;
     let cameraTypesNames = [
       "Camera: Motion File",
       "Camera: Fly",
@@ -660,10 +676,12 @@ class SceneBuilderSplit implements ISceneBuilder {
     const changeCameraToNext = () => {
       cameraID = cameraTypes.length - 1 === cameraID ? 0 : cameraID + 1;
       scene.activeCamera = cameraTypes[cameraID]!;
+      MMDLoadDetails.cameraType = cameraID;
       updateCameraButtonText();
     };
 
     updateCameraButtonText();
+    MMDLoadDetails.nextCamera = changeCameraToNext;
     if (toggleCameraButton) {
       toggleCameraButton.onclick = changeCameraToNext;
     }
@@ -672,7 +690,7 @@ class SceneBuilderSplit implements ISceneBuilder {
       if (event.key === "k") {
         if (mmdRuntimeMusic.isAnimationPlaying)
           mmdRuntimeMusic.pauseAnimation();
-        else mmdRuntimeMusic.playAnimation();
+        else playOrRestart(mmdRuntimeMusic);
       } else if (event.key === "l") {
         mmdRuntimeMusic.seekAnimation(
           Math.min(
@@ -684,7 +702,7 @@ class SceneBuilderSplit implements ISceneBuilder {
         mmdRuntimeMusic.seekAnimation(
           Math.max(mmdRuntimeMusic.currentFrameTime - 30 * 5, 0),
         );
-      } else if (event.key === "o") {
+      } else if (event.key === "c") {
         changeCameraToNext();
       }
     };
@@ -734,6 +752,7 @@ class SceneBuilderSplit implements ISceneBuilder {
     };
     canvas.onclick = (event) => {
       event.preventDefault();
+      if ((event as PointerEvent).pointerType === "touch") return;
       const currentTime = performance.now();
       if (500 < currentTime - lastClickTime) {
         lastClickTime = currentTime;

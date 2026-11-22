@@ -1,0 +1,91 @@
+---
+title: AudioMixer
+description: "Play several audio tracks at once, each with its own volume, pan and start and end time."
+---
+
+## Dependencies {#dependencies}
+
+```bash npm2yarn
+npm install @mui/material @mui/icons-material @emotion/react @emotion/styled
+```
+
+## Usage {#usage}
+
+```tsx
+import AudioMixer, {
+  AudioMixerProvider,
+  useAudioMixer,
+} from "@arclockproject/common/components/AudioMixer";
+```
+
+- All tracks play together and the whole mix loops once every track has reached its end. Each
+  track has its own volume, pan, mute, and start and end time. Speed and pitch shift apply to all
+  of them.
+- Tracks only load their metadata until you press play.
+- Pan needs the files to come from the same origin as the page. For another origin, set
+  `corsMedia`, but only if that server sends CORS headers.
+- Pass `tracks` yourself, or put the mixer inside an `AudioMixerProvider`. The provider saves the
+  tracks in `localStorage`, and any component inside it can add tracks with `useAudioMixer`.
+
+The examples below are live. Edit the code to try your own values.
+
+### A fixed list of tracks {#a-fixed-list-of-tracks}
+
+Press play, then change each track's volume, pan and start and end time.
+
+```tsx live
+function FixedTracks() {
+  const tracks = useMemo(
+    () => [
+      { id: "a", title: "Track A", url: `${REMOTE.base}/jkZ53T1Pu7k.m4a` },
+      { id: "b", title: "Track B", url: `${REMOTE.base}/PXQZNGjZIFo.m4a` },
+    ],
+    [],
+  );
+  return <AudioMixer tracks={tracks} corsMedia />;
+}
+```
+
+### Add tracks from anywhere {#add-tracks-from-anywhere}
+
+The buttons and the mixer share the provider's tracks. Add and remove tracks, then reload the page:
+the list is kept.
+
+```tsx live noInline
+const songs = [
+  { id: "song-a", title: "Track A", url: `${REMOTE.base}/jkZ53T1Pu7k.m4a` },
+  { id: "song-b", title: "Track B", url: `${REMOTE.base}/PXQZNGjZIFo.m4a` },
+];
+
+function AddButtons() {
+  const mixer = useAudioMixer();
+  return (
+    <p>
+      {songs.map((song) => (
+        <button
+          key={song.id}
+          type="button"
+          onClick={() => (mixer.has(song) ? mixer.remove(song) : mixer.add(song))}
+        >
+          {mixer.has(song) ? "Remove" : "Add"} {song.title}
+        </button>
+      ))}
+    </p>
+  );
+}
+
+function App() {
+  return (
+    <AudioMixerProvider storageKey="docs-example-mixer">
+      <AddButtons />
+      <AudioMixer corsMedia />
+    </AudioMixerProvider>
+  );
+}
+
+render(<App />);
+```
+
+## API {#api}
+
+See the [AudioMixer API reference](/docs/api/common/components/AudioMixer) for every prop, method and type.

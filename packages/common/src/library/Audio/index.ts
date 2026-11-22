@@ -124,7 +124,9 @@ class AudioManager {
           case "drop":
             return null;
           case "throw":
-            throw new Error(`AudioManager reached max instances allowed on '${path}'`);
+            throw new Error(
+              `AudioManager reached max instances allowed on '${path}'`,
+            );
           default:
             if (this.options.cache.onMax(path, instances.length)) return null;
         }
@@ -256,10 +258,10 @@ class AudioManager {
 /**
  * Shared `AudioManager` for the whole app, so volume and single-instance
  * sounds are managed in one place.
- * 
+ *
  * Default configuration:
  * - Warn when single sound has more then 10 instances
- * - No instance limit for single sound 
+ * - No instance limit for single sound
  *
  * @example
  * import { AudioManagerGlobal } from "@arclockproject/common/library/Audio";

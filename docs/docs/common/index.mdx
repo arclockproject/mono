@@ -34,6 +34,16 @@ import Time from "@arclockproject/common/library/Time"; // View all in Library s
 import Image from "@arclockproject/common/components/Image"; // View all in Components section 
 ```
 
+Both ES modules (`import`) and CommonJS (`require`) are supported, so the libraries also work in a
+Node.js server compiled to CommonJS. With CommonJS, the default export is under `.default`:
+
+```js
+const Time = require("@arclockproject/common/library/Time").default;
+```
+
+Importing the package root, `@arclockproject/common`, gives nothing useful. Always import a
+library or component by its own path.
+
 ## Contents {#contents}
 
 <DocCardList />
