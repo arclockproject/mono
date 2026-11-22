@@ -9,6 +9,7 @@ export default defineConfig({
   dts: true,
   target: false,
   treeshake: true,
-  format: "esm",
+  format: ["esm", "cjs"],
+  cjsDefault: false,
   clean: true,
 });
