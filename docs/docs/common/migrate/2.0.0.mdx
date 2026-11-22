@@ -1,0 +1,75 @@
+---
+title: "1.2.1 to 2.0.0"
+slug: 2.0.0
+description: "Image no longer shows PSD files, and its video controls hide while it can be dragged."
+---
+
+2.0.0 adds new components and libraries. Only `Image` has breaking changes, and a few exports are
+deprecated.
+
+:::important
+
+If your code doesn't use `Image`, then you don't need to change anything!
+
+:::
+
+## Summary {#summary}
+
+| 1.2.1 | 2.0.0 |
+|---|---|
+| `<Image renderer="psd" psdRenderer={…} />` | Removed. See [PSD files](#psd-files). |
+| `<Image controls enableMovement />` shows video controls (a bug) | Fixed: controls only show while `enableMovement` is off. See [Video controls](#video-controls). |
+| `<AppearingText speed={30}>` | Deprecated. Use `<Text speed={30}>`. |
+| `<LimitLines1>`, `<LimitLines2>` | Deprecated. Use `<Text lines={1}>`, `<Text lines={2}>`. |
+| `@toolpad/core` peer dependency | No longer needed. |
+
+## PSD files {#psd-files}
+
+`Image` shows images and videos only. The `psdRenderer` prop and `renderer="psd"` are removed.
+With `renderer="auto"`, a `.psd` file is now shown as an image, which browsers can't display.
+
+Use [PSDViewer](../components/PSDViewer/index.mdx) for `.psd` files. It fills its parent, so give
+the parent a size and `position: relative`:
+
+```tsx
+// 1.2.1
+<Image renderer="psd" psdRenderer={{ isLazy: false, component: PSDViewer }} src="/art.psd" enableMovement />
+
+// 2.0.0
+<div style={{ position: "relative", height: 500 }}>
+  <PSDViewer src="/art.psd" />
+</div>
+```
+
+To keep it out of your bundle until it is needed, load it with `React.lazy` and wrap it in
+`<Suspense>` yourself.
+
+## Video controls {#video-controls}
+
+`controls` is meant to show the video controls only while `enableMovement` is off. 1.2.1 had a bug
+that did the opposite: the controls only showed while `enableMovement` was also on. 2.0.0 fixes
+this.
+
+If you want video controls, turn `enableMovement` off:
+
+```tsx
+<Image renderer="auto" src="/clip.mp4" controls enableMovement={false} />
+```
+
+## Types {#types}
+
+`Image`'s `onLoad` and `onError` now get an `<img>` or `<video>` event, instead of a `<div>` or
+`<video>` event. Handlers that use `event.currentTarget` may need a new type.
+
+## Deprecated {#deprecated}
+
+`AppearingText`, `LimitLines1` and `LimitLines2` still work, but will be removed in a later version.
+See [Migrating from LimitLines and AppearingText](../components/Text/index.mdx#migrating).
+
+## Other changes {#other-changes}
+
+- **CommonJS:** `require()` now loads a CommonJS build. The default export is under `.default`:
+  `require("@arclockproject/common/library/Time").default`.
+- **New peer dependency:** `react-virtuoso`, used by [Reader](../components/Reader/index.mdx).
+  Install it if your package manager doesn't install peer dependencies for you.
+- **`@toolpad/core`:** no longer a peer dependency. You can uninstall it if nothing else uses it.
