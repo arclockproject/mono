@@ -1,0 +1,86 @@
+---
+title: "LocalStorage"
+description: "Read and write JSON in localStorage, and a useState that is saved there."
+---
+
+## Dependencies {#dependencies}
+
+This library does not require any dependencies. `useLocalStorageState` is a React hook.
+
+## Usage {#usage}
+
+```tsx
+import LocalStorage, { useLocalStorageState } from "@arclockproject/common/library/LocalStorage";
+```
+
+- Nothing here throws. Storage that is full, blocked (e.g. in private mode) or holds broken JSON
+  is treated as empty, and `write` returns `false`.
+- Every read takes a `validate` function, because anyone can edit `localStorage` by hand. Return
+  the value if it is valid, or `undefined` to use the fallback.
+- `useLocalStorageState` reads the saved value once, when the component mounts, and saves on
+  every set. Other components and tabs using the same key are not updated. Its setter takes a
+  value, not a function.
+
+The examples below are live. Edit the code to try your own values.
+
+### A saved counter {#a-saved-counter}
+
+Change the number, then reload the page. It keeps its value.
+
+```tsx live
+function SavedCounter() {
+  const [count, setCount] = useLocalStorageState(
+    "docs-example-counter",
+    0,
+    (value) => (typeof value === "number" ? value : undefined),
+  );
+
+  return (
+    <div>
+      <button type="button" onClick={() => setCount(count - 1)}>-</button>{" "}
+      <code>{count}</code>{" "}
+      <button type="button" onClick={() => setCount(count + 1)}>+</button>{" "}
+      <button type="button" onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}
+```
+
+### Validation {#validation}
+
+`read` gives the fallback when the saved value doesn't pass `validate`. Save something that isn't
+a number and read it back.
+
+```tsx live
+function ValidationPlayground() {
+  const [raw, setRaw] = useState('"not a number"');
+  const [result, setResult] = useState("");
+  const isNumber = (value) => (typeof value === "number" ? value : undefined);
+
+  const run = () => {
+    let saved = false;
+    try {
+      saved = LocalStorage.write("docs-example-raw", JSON.parse(raw));
+    } catch {
+      setResult("That isn't valid JSON.");
+      return;
+    }
+    const value = LocalStorage.read("docs-example-raw", 42, isNumber);
+    setResult(`write → ${saved}, read with fallback 42 → ${JSON.stringify(value)}`);
+  };
+
+  return (
+    <div>
+      <label>
+        JSON to save: <input value={raw} onChange={(e) => setRaw(e.target.value)} />
+      </label>{" "}
+      <button type="button" onClick={run}>Save and read</button>
+      <p><code>{result}</code></p>
+    </div>
+  );
+}
+```
+
+## API {#api}
+
+See the [LocalStorage API reference](/docs/api/common/library/LocalStorage) for every prop, method and type.

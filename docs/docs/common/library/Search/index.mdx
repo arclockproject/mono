@@ -1,0 +1,194 @@
+---
+title: "Search"
+description: "Turn search text like cat -dog likes>=10 into a safe SQL query, with sorting and paging."
+---
+
+## Dependencies {#dependencies}
+
+This library does not require any dependencies. It only builds SQL. Run the query with your own
+database driver, e.g. [mariadb](https://www.npmjs.com/package/mariadb):
+
+```bash npm2yarn
+npm install mariadb
+```
+
+It works with both `import` and `require`.
+
+## Usage {#usage}
+
+```tsx
+import Search, { SearchError } from "@arclockproject/common/library/Search";
+```
+
+Define a search once with `Search.select` (one table or view) or `Search.union` (several tables).
+For each request, call `build`, run its `text` and `params` on your database, and pass the rows to
+`result`:
+
+```tsx
+const posts = Search.select({
+  from: "posts",
+  filter: "deleted = 0",
+  columns: ["id", "title", "body", "author", "likes"],
+  search: ["title", "body"],
+  sort: { likes: "likes", title: "title", random: Search.random },
+  tieBreak: ["id"],
+});
+
+app.get("/posts/search", async (req, res, next) => {
+  try {
+    const query = posts.build({
+      text: req.query.q,
+      sort: req.query.sort,
+      order: req.query.order,
+      seed: req.query.seed,
+      page: req.query.page,
+      after: req.query.after,
+      before: req.query.before,
+    });
+    const rows = await db.query(query.text, query.params);
+    res.json(query.result(rows)); // { rows, page, next, prev, seed? }
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+Request values can be passed as they are: anything missing or invalid falls back to a default. Bad
+search text throws a `SearchError` with `status: 400`, so Express answers "400 Bad Request". Its
+`position` says where in the text the problem is.
+
+### Search text {#search-text}
+
+The text is split on spaces, and every part must match:
+
+| Text | Matches rows where |
+|---|---|
+| `cat` or `"two words"` | one of the `search` columns contains it |
+| `^cat`, `cat$`, `^cat$` | it is at the start, at the end, or the whole value |
+| `author=Jack`, also `!=` | the column is (not) equal to the value |
+| `likes>10`, `<`, `>=` (or `=>`), `<=` (or `=<`) | the column compares. Numbers are sent as numbers |
+| `author:^Jim` | the column contains the value. `^` and `$` work here too |
+| `-cat`, `-author=Jack` | the part does not match |
+
+- Quote a value to include spaces: `author="Jack Brown"`. Quoting the whole part,
+  `"author=Jack Brown"`, searches for that text instead.
+- A `\` makes the next character plain, e.g. `\^`, `\$` or `\"`.
+- An empty (`NULL`) column never matches, so `-cat` and `author!=Jack` keep rows where the column is
+  empty.
+- Only names in `columns` (minus `exclude`) can be used, also through `alias`. Any other name, like
+  `password=x`, is an error with the same message as a column that doesn't exist.
+
+The example below is live. Type a search to see the SQL it builds.
+
+```tsx live
+function SearchPlayground() {
+  const [text, setText] = useState('cat -"black cat" by:^Jim likes>=10');
+  const [sort, setSort] = useState("likes");
+  const posts = useMemo(
+    () =>
+      Search.select({
+        from: "posts",
+        columns: ["id", "title", "body", "author", "likes", "password"],
+        exclude: ["password"],
+        search: ["title", "body"],
+        alias: { author: ["by"] },
+        sort: { likes: "likes", title: "title", random: Search.random },
+        tieBreak: ["id"],
+        pageSize: 20,
+      }),
+    [],
+  );
+  let output;
+  try {
+    const query = posts.build({ text, sort, page: 1, seed: 7 });
+    output = `${query.text}\n\nparams: ${JSON.stringify(query.params)}`;
+  } catch (error) {
+    output = `${error.name}: ${error.message}`;
+  }
+
+  return (
+    <div>
+      <input style={{ width: "100%" }} value={text} onChange={(e) => setText(e.target.value)} />
+      <p>
+        Sort:{" "}
+        <select value={sort} onChange={(e) => setSort(e.target.value)}>
+          <option>likes</option>
+          <option>title</option>
+          <option>random</option>
+        </select>
+      </p>
+      <pre style={{ whiteSpace: "pre-wrap" }}>{output}</pre>
+    </div>
+  );
+}
+```
+
+### Sorting and paging {#sorting-and-paging}
+
+Rows are always in one fixed order: the chosen `sort` column, then the `tieBreak` columns. The
+`tieBreak` columns must be different for every row together, usually just the id. Without that,
+rows with the same sort value could swap places between pages.
+
+- **`after` and `before`** take the `next` and `prev` cursors from `result`. Paging this way shows
+  every row exactly once, even while rows are added or removed. Only a row whose sort value changes
+  while someone pages can move.
+- **`page`** jumps to a page number with `OFFSET`. That is exact while nothing changes. Use
+  `maxPage` to limit how deep someone can jump, since a large `OFFSET` is slow.
+- **`Search.random`** as a sort value gives a random order that stays the same for the same `seed`,
+  so pages don't overlap. Without a seed, one is picked and returned as `seed` by `result`. It
+  works with MySQL, MariaDB and Postgres, not SQLite.
+- For fast pages, index each table on the sort column followed by the `tieBreak` columns, e.g.
+  `INDEX (likes, id)`.
+
+### Several tables {#several-tables}
+
+`Search.union` searches several tables as if they were one. Every table gives the same `output`
+columns. A column a table doesn't have is `NULL` there, and `select` maps differently named
+columns. `sourceColumn` holds the table's name, and must be in `tieBreak`, because ids can repeat
+across tables.
+
+```tsx
+const library = Search.union({
+  output: ["service", "id", "title", "published"],
+  sourceColumn: "service",
+  sources: {
+    photo: { from: "photos", columns: ["id", "title", "published", "artist"], search: ["title", "artist"] },
+    book: {
+      from: "books",
+      filter: "hidden = 0",
+      columns: ["id", "title", "uploader"],
+      search: ["title", "uploader"],
+      select: { published: "published_date" },
+    },
+  },
+  sort: { published: "published", title: "title", random: Search.random },
+  tieBreak: ["service", "id"],
+});
+
+const query = library.build({ text: req.query.q, sources: req.query.types, sort: req.query.sort, after: req.query.after });
+```
+
+- A term on a column only some tables have, like `artist=Jim`, leaves the other tables out. A `-`
+  term, like `-artist=Jim`, is skipped for them instead. A column no table has is an error.
+- `sources` (e.g. `?types=photo,book`) limits which tables are searched.
+- Each table returns only the rows that can be on the page, so the pages are the same as one big
+  table without reading every row.
+
+### Rows that must stay private {#rows-that-must-stay-private}
+
+Values from the request are always sent as parameters, and column names come only from your
+settings, so the search text can't change the SQL. To keep data private:
+
+- Use `filter` for rows that must never be returned. It is joined as `WHERE (filter) AND (search)`,
+  so the search can only narrow it. A function filter can use request data:
+  ``filter: (param, req) => `owner_id = ${param(req.userID)}` ``, with `context: req` in `build`.
+  A filter that gives no SQL throws instead of searching every row.
+- Only put columns the user may see in `columns`. Any searchable column can be guessed one letter at
+  a time with `col:^a`, `col:^ab`, …
+- Without `fields`, only `columns` minus `exclude` are selected. SQL you write in `from`, `fields`,
+  `select` and `filter` is not checked, so never build it from request data.
+- For a second layer, point `from` at a view that already leaves out the private rows.
+
+## API {#api}
+
+See the [Search API reference](/docs/api/common/library/Search) for every prop, method and type.
