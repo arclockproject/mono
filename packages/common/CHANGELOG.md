@@ -1,3 +1,39 @@
+## 2.0.0 (2026-11-22)
+
+### ⚠️ Breaking Changes
+
+- Removed PSD support from Image, and fixed video controls showing only while enableMovement is on. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+
+### ✨ Features
+
+- Added Worker, a queue that runs an async task for each item, a few at a time, with progress and cancelling. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added Search, to turn search text like cat -dog likes>=10 into a safe SQL query with sorting and paging. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added Firewall, login and permission checks for an Express server. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- PSDViewer now redraws the image from its layers with blend modes, opacity, masks, clipping and groups. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added Reader, a book reader with single page, double page and scroll views, zoom and bookmarks. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added GalleryBrowser, a paged gallery of images and videos with fullscreen, drag and zoom, and bookmarks. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added AudioMixer, to play several audio tracks at once with their own volume, pan and start and end time. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added subtitle files, video filters, audio effects and 180°, 360° and 3D video to Player. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added Text, with line clamping and typing. Deprecated AppearingText, LimitLines1 and LimitLines2. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added defaultTransform and onTransformChange to Movable. Zooming keeps the point under the cursor or pinch in place. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added Extension, to find which file extension a URL has on the server. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added LocalStorage, to read and write JSON in localStorage, with a useLocalStorageState hook. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added instance limit option to AudioManager ([#9](https://github.com/arclockproject/mono/pull/9)) @arturwagneruk
+
+### 🐛 Bug Fixes
+
+- Fixed require() loading the ES module build. CommonJS builds are now included. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Fixed mobile touch drag in Window. ([#11](https://github.com/arclockproject/mono/pull/11)) @arturwagneruk
+- Fixed fullscreen opening same Player when several are on page. ([#10](https://github.com/arclockproject/mono/pull/10)) @arturwagneruk
+
+### 📖 Documentation
+
+- Updated the README with the new components and libraries, and documented Window's spawn fields. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+
+### 🎨 Styles
+
+- Formatted code with Biome. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+
 ## 1.2.1 (2026-11-01)
 
 ### 📖 Documentation
