@@ -1,3 +1,24 @@
+## 1.0.0 (2026-11-22)
+
+### ⚠️ Breaking Changes
+
+- Fixed MMD Players sharing state issues. ([#12](https://github.com/arclockproject/mono/pull/12)) @arturwagneruk
+
+### ✨ Features
+
+- Redesigned the controls with a playback bar, side panels, an option wheel and keyboard shortcuts. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+
+### 🐛 Bug Fixes
+
+- Fixed loading a dance motion removing the character's part motions. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Fixed the scene details dialog picking up the page's code styles. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+- Added MMDUpdatePreview stud with a notice to the migration docs. ([#12](https://github.com/arclockproject/mono/pull/12)) @arturwagneruk
+- Fixed text fields not accepting user input. ([#12](https://github.com/arclockproject/mono/pull/12)) @arturwagneruk
+
+### 🔧 Chores
+
+- Removed unused dev dependencies and the vite script. ([#16](https://github.com/arclockproject/mono/pull/16)) @arturwagneruk
+
 ## 0.1.2 (2026-11-01)
 
 ### 📖 Documentation
