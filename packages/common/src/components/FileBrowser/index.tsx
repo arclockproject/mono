@@ -98,7 +98,7 @@ function FileBrowser(props: {
   fillContainer?: boolean;
   /**
    * Called with the full path (including `base`) when a file is clicked.
-   * 
+   *
    * Not called for folders.
    */
   customAction?: (file: string) => void;
