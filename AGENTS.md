@@ -143,8 +143,8 @@ Live examples are for trying things out. Prefer small playgrounds (inputs,
 sliders, buttons) that show the result on the page instead of `console.log`.
 
 - Anything used in a live block must be in the scope in
-  `docs/src/theme/ReactLiveScope/index.tsx`. Array is exposed as `ArrayUtil` so
-  it doesn't hide the built-in `Array`.
+  `docs/src/theme/ReactLiveScope/index.tsx`. Array is exposed as `ArrayUtil` and
+  Worker as `TaskWorker`, so they don't hide the built-in `Array` and `Worker`.
 - Use `REMOTE.base` for demo files, and `beepUrl(hz)` for
   a short sound. `REMOTE.noname0310` can't be used for anything other than mmd-player.
 - Several components in one block need ` ```tsx live noInline ` and `render(<App />)`.
