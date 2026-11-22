@@ -15,23 +15,30 @@ npm install @mui/material @emotion/react @emotion/styled @webtoon/psd
 import PSDViewer from "@arclockproject/common/components/PSDViewer";
 ```
 
-Nothing downloads until the user clicks **Load PSD File**. Then the flattened image is shown,
-with a layer panel to turn layers on and off. Changing layers redraws the image from its layers.
-How close the redraw looks depends on the file, because many layer blend modes are not supported
-yet.
+Nothing downloads until the user clicks **Load PSD**. Then the image saved in the file is shown,
+with a layer panel to show and hide layers and groups.
 
-PSDViewer fills its parent, so give the parent a size and `position: relative`.
+- Changing a layer redraws the image from its layers. The redraw supports every blend mode,
+  opacity and fill, layer masks, clipping masks and groups.
+- Layer effects, adjustment layers and group masks are not drawn, so files that use them can look
+  different from Photoshop. The toolbar can switch back to the saved image, which is always exact.
+- PSDViewer fills its parent, so give the parent a size and `position: relative`.
+- Of the `<div>` props, only `style` and the mouse, touch and wheel handlers are used.
 
-Demo assets were obtained from null.
+The example below is live. Edit the code to try your own values.
 
 ### Loading a PSD file {#loading-a-psd-file}
 
-```tsx title="Loading PSD File from /demo-assets/null.png" live showLineNumbers
+The demo file has a group with a clipped layer, screen, multiply and overlay layers with lower
+opacity, a layer mask and a hidden layer. Click **Load PSD**, then turn layers on and off and
+compare the redraw with the expected render. Showing "Hidden layer" adds a red X in the top right.
+
+```tsx live showLineNumbers
 <div>
-  <p>Expected Render:</p>
-  <img src="/demo-assets/null.png" />
-  <div style={{ height: "700px", position: "relative" }}>
-    <PSDViewer src="/demo-assets/30003358_juice_text_style_effect.psd" />
+  <p>Expected render:</p>
+  <img src={`${REMOTE.base}/psd-demo.png`} alt="Expected render of the demo PSD" style={{ maxWidth: "100%" }} />
+  <div style={{ height: "500px", position: "relative" }}>
+    <PSDViewer src={`${REMOTE.base}/psd-demo.psd`} />
   </div>
 </div>
 ```

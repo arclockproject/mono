@@ -105,6 +105,43 @@ function MovableEvents() {
 }
 ```
 
+### Remember the position {#remember-the-position}
+
+`onTransformChange` reports the position and zoom after every drag or zoom. Pass the last one back
+as `defaultTransform` to start there again, e.g. after the component remounts or the page
+reloads. Move or zoom the box, then press "Remount": it comes back where you left it.
+
+```tsx live
+function MovableMemory() {
+  const [transform, setTransform] = useState({ x: 0, y: 0, zoom: 1 });
+  const [mount, setMount] = useState(0);
+
+  return (
+    <div>
+      <button type="button" onClick={() => setMount(mount + 1)}>Remount</button>{" "}
+      <button type="button" onClick={() => { setTransform({ x: 0, y: 0, zoom: 1 }); setMount(mount + 1); }}>
+        Reset
+      </button>
+      <p>
+        <code>{JSON.stringify({ x: Math.round(transform.x), y: Math.round(transform.y), zoom: +transform.zoom.toFixed(2) })}</code>
+      </p>
+      <Movable
+        key={mount}
+        enableMovement
+        enableZoom
+        defaultTransform={transform}
+        onTransformChange={setTransform}
+        style={{ width: "100%", height: "160px", background: "rgb(52, 11, 55)" }}
+      >
+        <div style={{ width: "100%", height: "100%", background: "rgb(3, 70, 3)" }}>
+          <p style={{ color: "white" }}>Move and zoom me, then remount!</p>
+        </div>
+      </Movable>
+    </div>
+  );
+}
+```
+
 ## API {#api}
 
 See the [Movable API reference](/docs/api/common/components/Movable) for every prop, method and type.

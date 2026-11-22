@@ -1,7 +1,15 @@
 ---
 title: AppearingText
-description: "Text that types itself out one character at a time."
+description: "Deprecated. Moved to Text, as its speed prop."
 ---
+
+:::warning[Deprecated]
+
+`AppearingText` is now part of [`Text`](/docs/common/components/Text#typing). Use
+`<Text speed={100}>` instead. `AppearingText` still works, but will be removed in
+a later version. See [Migrating from LimitLines and AppearingText](/docs/common/components/Text#migrating).
+
+:::
 
 ## Dependencies {#dependencies}
 
@@ -12,65 +20,19 @@ npm install @mui/material @emotion/react @emotion/styled
 ## Usage {#usage}
 
 ```tsx
+// Before
 import { AppearingText } from "@arclockproject/common/components/AppearingText";
+
+<AppearingText speed={30}>Hello there!</AppearingText>;
+
+// After
+import { Text } from "@arclockproject/common/components/Text";
+
+<Text speed={30}>Hello there!</Text>;
 ```
 
-The examples below are live. Edit the code to try your own values.
-
-### Default speed {#default-speed}
-
-One character every 100ms.
-
-```tsx live
-<AppearingText>
-  Lorem ipsum dolor sit amet consectetur adipisicing elit. Illo quod fugiat
-  excepturi temporibus iste reiciendis repudiandae aliquam libero atque, sed id
-  nemo quia similique hic ducimus labore corrupti cupiditate quae.
-</AppearingText>
-```
-
-### Custom speed {#custom-speed}
-
-One character every 20ms.
-
-```tsx live
-<AppearingText speed={20}>
-  Lorem ipsum dolor sit amet consectetur adipisicing elit. Illo quod fugiat
-  excepturi temporibus iste reiciendis repudiandae aliquam libero atque, sed id
-  nemo quia similique hic ducimus labore corrupti cupiditate quae.
-</AppearingText>
-```
-
-### Playground {#playground}
-
-Typing starts again whenever the text or speed changes. It accepts all MUI `Typography`
-props, like `variant`.
-
-```tsx live
-function AppearingTextPlayground() {
-  const [text, setText] = useState("Hello there! This text types itself out.");
-  const [speed, setSpeed] = useState(50);
-  const [variant, setVariant] = useState("h5");
-  const [restart, setRestart] = useState(0);
-
-  return (
-    <div>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} style={{ width: "100%" }} />
-      <p>
-        Speed {speed}ms per character. <br />
-        <input type="range" min={5} max={300} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} />
-        <select value={variant} onChange={(e) => setVariant(e.target.value)}>
-          {["h3", "h5", "body1", "caption"].map((name) => <option key={name}>{name}</option>)}
-        </select>
-        <button onClick={() => setRestart(restart + 1)}>Restart</button>
-      </p>
-      <AppearingText key={restart} speed={speed} variant={variant}>
-        {text}
-      </AppearingText>
-    </div>
-  );
-}
-```
+`AppearingText` types at 100ms per character by default. `Text` only types when
+`speed` is set, so pass `speed={100}` to keep the old speed.
 
 ## API {#api}
 
