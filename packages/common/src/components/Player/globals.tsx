@@ -47,7 +47,9 @@ type videoData<metaType> = {
      * Subtitle files the viewer can pick from, or `null`. A single URL is
      * shown as one file named "Subtitles". `.vtt`, `.srt` and `.ass`/`.ssa`
      * are read, and `.ass` styles and positions are kept. They are shown in
-     * audio only mode too. Files on another origin need CORS headers.
+     * audio only mode too. Files on another origin need CORS headers. Text
+     * subtitle tracks inside an `.mkv`/`.webm` or `.mp4`/`.mov` video are
+     * added after these (see `settings.embeddedSubtitles`).
      */
     subtitles: string | subtitleFile[] | null;
     /** URL of the thumbnail image. */
@@ -75,6 +77,14 @@ type subtitleFile = {
   label: string;
   /** URL of the file. */
   url: string;
+  /**
+   * Number of a text subtitle track inside the video at `url`: the track
+   * number in an `.mkv`/`.webm`, or the track ID in an `.mp4`/`.mov`. Leave it
+   * out for a separate subtitle file. The player lists the video's own tracks
+   * by itself (see `settings.embeddedSubtitles`), so this is only needed to
+   * give a track your own label, or for a URL without one of those endings.
+   */
+  track?: number;
 };
 
 /**
@@ -199,6 +209,12 @@ type subtitleSettings = {
    */
   fileStyles: boolean;
   /**
+   * Let viewers select the subtitle text and point at it, e.g. for pop-up
+   * dictionaries like Yomitan. Clicks on the text then don't play, pause,
+   * seek or drag, and right-click opens the browser's own menu, e.g. to copy.
+   */
+  selectable: boolean;
+  /**
    * Name of the subtitle file picked last. Entries without a file of that
    * name show their first file.
    */
@@ -213,6 +229,7 @@ const DEFAULT_SUBTITLE_SETTINGS: subtitleSettings = {
   raise: 0,
   delay: 0,
   fileStyles: true,
+  selectable: false,
   track: "",
 };
 
@@ -263,6 +280,17 @@ type settings = {
    * @default false
    */
   corsMedia?: boolean;
+  /**
+   * List the text subtitle tracks inside the video next to the entry's
+   * subtitle files: `.srt`, `.ass` and WebVTT tracks in `.mkv`/`.webm`, and
+   * `tx3g` (`mov_text`) and WebVTT tracks in `.mp4`/`.m4v`/`.mov`. Only the
+   * start of the video, its index and the subtitle lines are fetched, with
+   * range requests. The server must support range requests, and files on
+   * another origin need CORS headers. Image subtitles (PGS, VobSub), TTML,
+   * fonts inside the file and fragmented MP4 files are not supported.
+   * @default true
+   */
+  embeddedSubtitles?: boolean;
 };
 
 /**
@@ -523,7 +551,20 @@ type PlayerContextProps<metaType, listMetaType> = {
   };
 };
 
+/**
+ * Length used while the real one is not known yet, in seconds (99 hours). It
+ * is big rather than `0`, so positions divided by it stay valid.
+ */
 const DEFAULT_MAX_DURATION = 356400;
+
+/**
+ * Whether `duration` is a real length: finite, above `0` and not
+ * `DEFAULT_MAX_DURATION`.
+ */
+const isDurationKnown = (duration: number): boolean =>
+  Number.isFinite(duration) &&
+  duration > 0 &&
+  duration !== DEFAULT_MAX_DURATION;
 /** Largest audio offset, in seconds, either way. */
 const AUDIO_OFFSET_MAX = 2;
 /** Audio offsets snap to multiples of this, in seconds. */
@@ -562,6 +603,7 @@ export {
   DEFAULT_MAX_DURATION,
   DEFAULT_VIDEO_FILTERS,
   getBufferedEnd,
+  isDurationKnown,
   AUDIO_OFFSET_MAX,
   AUDIO_OFFSET_STEP,
   SPEED_MAX,

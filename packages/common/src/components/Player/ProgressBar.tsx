@@ -19,6 +19,11 @@ const DISPLAY_FPS = 24;
 const EDGE_HEAT = 0;
 
 const displayFrameInterval = Math.round(1000 / DISPLAY_FPS);
+/**
+ * After a touch, browsers send emulated mouse events. Mouse moves this many
+ * ms after a touch are ignored, so they don't show the hover tooltip again.
+ */
+const EMULATED_MOUSE_MS = 1000;
 const previewStyle: React.CSSProperties = {
   position: "absolute",
   background: "rgba(18, 18, 18, 0.92)",
@@ -44,6 +49,12 @@ function ProgressBar(props: {
   minimized?: boolean;
   factor?: number;
   max: number;
+  /**
+   * `false` while the length is not known yet: pressing the bar doesn't seek
+   * and no hover time is shown.
+   * @default true
+   */
+  seekable?: boolean;
   onStartDragging: () => void;
   onEndDragging: (newCurrent: number) => void;
 }): JSX.Element {
@@ -56,8 +67,9 @@ function ProgressBar(props: {
   const [dragging, setDragging] = useState(false);
   const [timeHover, setTimeHover] = useState<number | null>(null);
   const [chapterHover, setChapterHover] = useState<string | null>(null);
+  const seekable = props.seekable !== false;
   const setDraggingTrue = (event: unknown) => {
-    if (!bar.current) return;
+    if (!bar.current || !seekable) return;
     if (
       event &&
       typeof event === "object" &&
@@ -68,30 +80,33 @@ function ProgressBar(props: {
     setDragging(true);
     props.onStartDragging();
     const moveEnd = (event: MouseEvent | TouchEvent) => {
-      if (!bar.current) return;
-      const { width, x } = bar.current.getBoundingClientRect();
-      const eventEnd =
-        event instanceof MouseEvent ? event.clientX : event.touches[0]!.clientX;
-      props.onEndDragging(
-        Math.min(1, Math.max(0, (eventEnd - x) / width)) * props.max,
-      );
-      setDragging(false);
       document.removeEventListener("mouseup", moveEnd);
       document.removeEventListener("touchend", moveEnd);
       document.removeEventListener("touchcancel", moveEnd);
+      setDragging(false);
+      if (!bar.current) return;
+      const { width, x } = bar.current.getBoundingClientRect();
+      const eventEnd =
+        event instanceof MouseEvent
+          ? event.clientX
+          : event.changedTouches[0]?.clientX;
+      if (eventEnd === undefined) return;
+      props.onEndDragging(
+        Math.min(1, Math.max(0, (eventEnd - x) / width)) * props.max,
+      );
     };
     document.addEventListener("mouseup", moveEnd);
     document.addEventListener("touchend", moveEnd);
     document.addEventListener("touchcancel", moveEnd);
   };
-  const mouseMove = useMemo(
+  const showHover = useMemo(
     () =>
       _.throttle(
-        (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+        (clientX: number) => {
           if (!bar.current) return;
           const { width, x } = bar.current.getBoundingClientRect();
           const currentTime =
-            Math.min(1, Math.max(0, (event.clientX - x) / width)) * props.max;
+            Math.min(1, Math.max(0, (clientX - x) / width)) * props.max;
           setTimeHover(currentTime);
           if (props.chapters && props.chapters.length > 0)
             setChapterHover(
@@ -112,6 +127,26 @@ function ProgressBar(props: {
   const cancelHover = () => {
     setTimeHover(0);
     setChapterHover(null);
+  };
+  const lastTouch = useRef(0);
+  const mouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (Date.now() - lastTouch.current < EMULATED_MOUSE_MS || !seekable) return;
+    showHover(event.clientX);
+  };
+  const touchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    lastTouch.current = Date.now();
+    setDraggingTrue(event);
+    const touch = event.touches[0];
+    if (props.main && seekable && touch) showHover(touch.clientX);
+  };
+  const touchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    lastTouch.current = Date.now();
+    const touch = event.touches[0];
+    if (props.main && seekable && touch) showHover(touch.clientX);
+  };
+  const touchEnd = () => {
+    lastTouch.current = Date.now();
+    cancelHover();
   };
   let requiredSpaceToUse = requiredSpace;
   if (timeTextRef.current?.offsetWidth || chapterTextRef.current?.offsetWidth) {
@@ -259,11 +294,12 @@ function ProgressBar(props: {
         },
       }}
       onMouseDown={setDraggingTrue}
-      onTouchStart={setDraggingTrue}
+      onTouchStart={touchStart}
+      onTouchMove={touchMove}
       onMouseMove={props.main ? mouseMove : undefined}
       onMouseLeave={cancelHover}
-      onTouchEnd={cancelHover}
-      onTouchCancel={cancelHover}
+      onTouchEnd={touchEnd}
+      onTouchCancel={touchEnd}
     >
       <div
         style={{
@@ -290,7 +326,7 @@ function ProgressBar(props: {
         >
           {heatmap}
         </Box>
-        {timeHover && bar.current ? (
+        {timeHover && seekable && bar.current ? (
           <div
             style={{
               position: "absolute",

@@ -23,7 +23,12 @@ import type { PropsWithChildren } from "react";
 import { Children, useEffect, useState } from "react";
 
 import type { JSX } from "react/jsx-runtime";
-import { DEFAULT_MAX_DURATION, SPEED_MAX, SPEED_MIN } from "./globals";
+import {
+  DEFAULT_MAX_DURATION,
+  isDurationKnown,
+  SPEED_MAX,
+  SPEED_MIN,
+} from "./globals";
 import { ProgressBar } from "./ProgressBar";
 import { usePlayer } from "./usePlayer";
 
@@ -162,6 +167,7 @@ function MiniPlayer({ children }: PropsWithChildren): JSX.Element {
             }
             bufferVideo={null}
             max={context.internal.maxDuration.value}
+            seekable={isDurationKnown(context.internal.maxDuration.value)}
             onStartDragging={() => {}}
             onEndDragging={(newCurrent) => {
               if (isOpenAndAllowed)

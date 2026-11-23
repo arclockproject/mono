@@ -67,8 +67,13 @@ import {
   VideoFormatPanel,
 } from "./EffectsPanels";
 import {
+  useEmbeddedSubtitleFiles,
+  withEmbeddedSubtitles,
+} from "./embeddedSubtitles";
+import {
   DEFAULT_MAX_DURATION,
   getBufferedEnd,
+  isDurationKnown,
   pickSubtitleFile,
   SPEED_MAX,
   SPEED_MIN,
@@ -177,8 +182,10 @@ interface position {
  * position and zoom, and "Reset" puts the video back.
  *
  * Subtitles (`.vtt`, `.srt`, `.ass`) are drawn by the player, so they also
- * show in audio only mode. `C` turns them on and off. For 180°, 360° and 3D
- * videos, set `videoData.format`. 180° and 360° are dragged to look around.
+ * show in audio only mode. `C` or the subtitles button turns them on and
+ * off. Text subtitle tracks inside `.mkv`, `.webm`, `.mp4` and `.mov` videos
+ * are listed too. For 180°, 360° and 3D videos, set `videoData.format`. 180°
+ * and 360° are dragged to look around.
  *
  * @see {@link https://arclockproject.org/docs/common/components/Player Guide} | {@link https://arclockproject.org/docs/api/common/components/Player API}
  * @example
@@ -310,15 +317,43 @@ function VideoPlayer<metaType, listMetaType>(props: {
         : null));
 
   const subtitleSettings = context.internal.subtitleSettings.value;
+  const embeddedSubtitleList = useEmbeddedSubtitleFiles(
+    context.internal.playerData.value?.files.video,
+    context.internal.settings.value.embeddedSubtitles !== false,
+  );
   const subtitleList = useMemo(
-    () => subtitleFiles(context.internal.playerData.value?.files.subtitles),
-    [context.internal.playerData.value?.files.subtitles],
+    () =>
+      withEmbeddedSubtitles(
+        subtitleFiles(context.internal.playerData.value?.files.subtitles),
+        embeddedSubtitleList,
+      ),
+    [context.internal.playerData.value?.files.subtitles, embeddedSubtitleList],
   );
   const hasSubtitles = subtitleList.length > 0;
   const subtitleFile = pickSubtitleFile(subtitleList, subtitleSettings.track);
-  const { track: subtitleTrack, error: subtitleError } = useSubtitleTrack(
+  const {
+    track: subtitleTrack,
+    error: subtitleError,
+    loading: subtitleLoading,
+  } = useSubtitleTrack(
     subtitleFile?.url,
+    subtitleFile?.track,
     subtitleSettings.enabled,
+  );
+  const subtitleOverlay = (
+    <SubtitleOverlay
+      track={subtitleTrack}
+      getTime={() =>
+        (context.internal.audioOnly.value
+          ? undefined
+          : context.internal.refVideo.current?.currentTime) ??
+        context.internal.targetControllerRef.current?.currentTime ??
+        context.internal.currentPosition.value
+      }
+      settings={subtitleSettings}
+      aspect={pictureAspect}
+      bottomInset={hideControls ? 0 : 72}
+    />
   );
   const toggleSubtitles = () =>
     context.internal.subtitleSettings.set({
@@ -1365,19 +1400,7 @@ function VideoPlayer<metaType, listMetaType>(props: {
                     }
                   />
                 ) : undefined}
-                <SubtitleOverlay
-                  track={subtitleTrack}
-                  getTime={() =>
-                    (context.internal.audioOnly.value
-                      ? undefined
-                      : context.internal.refVideo.current?.currentTime) ??
-                    context.internal.targetControllerRef.current?.currentTime ??
-                    context.internal.currentPosition.value
-                  }
-                  settings={subtitleSettings}
-                  aspect={pictureAspect}
-                  bottomInset={hideControls ? 0 : 72}
-                />
+                {subtitleSettings.selectable ? undefined : subtitleOverlay}
                 <Box
                   ref={overlayBox}
                   onPointerDown={onLookPointerDown}
@@ -1505,6 +1528,7 @@ function VideoPlayer<metaType, listMetaType>(props: {
                     {seekFeedbackPill("right")}
                   </div>
                 </Box>
+                {subtitleSettings.selectable ? subtitleOverlay : undefined}
                 <Box
                   sx={(theme) => ({
                     position: "absolute",
@@ -1624,7 +1648,7 @@ function VideoPlayer<metaType, listMetaType>(props: {
                             : subtitleError
                               ? `error (${subtitleError})`
                               : subtitleTrack
-                                ? `${subtitleFile?.label} · ${subtitleTrack.kind} · ${subtitleTrack.cues.length} cues`
+                                ? `${subtitleFile?.label} · ${subtitleTrack.kind} · ${subtitleTrack.cues.length} cues${subtitleLoading ? " (loading)" : ""}`
                                 : "loading"
                       }`,
                     ].join("\n")}
@@ -2027,21 +2051,31 @@ function VideoPlayer<metaType, listMetaType>(props: {
                     >
                       {`${Time.parseTimeDuration(
                         context.internal.currentPosition.value / processedSpeed,
-                      )} / ${Time.parseTimeDuration(
-                        context.internal.maxDuration.value / processedSpeed,
-                      )}`}
+                      )} / ${
+                        isDurationKnown(context.internal.maxDuration.value)
+                          ? Time.parseTimeDuration(
+                              context.internal.maxDuration.value /
+                                processedSpeed,
+                            )
+                          : "--:--"
+                      }`}
                     </Typography>
                     <div style={{ flex: 1 }} />
-                    {controlButton(
-                      "Settings",
-                      (event) => {
-                        setMenuAnchor(event.currentTarget);
-                        setShowContextMenu(true);
-                      },
-                      <SettingsIcon />,
-                      "top",
-                      showContextMenu && menuAnchor !== null,
-                    )}
+                    {hasSubtitles
+                      ? controlButton(
+                          subtitleSettings.enabled
+                            ? "Hide subtitles (C)"
+                            : "Show subtitles (C)",
+                          toggleSubtitles,
+                          subtitleSettings.enabled ? (
+                            <ClosedCaptionIcon />
+                          ) : (
+                            <ClosedCaptionOffIcon />
+                          ),
+                          "top",
+                          subtitleSettings.enabled,
+                        )
+                      : undefined}
                     {context.internal.playerData.value.files.audio !== null
                       ? controlButton(
                           context.internal.audioOnly.value
@@ -2060,6 +2094,16 @@ function VideoPlayer<metaType, listMetaType>(props: {
                           context.internal.audioOnly.value,
                         )
                       : undefined}
+                    {controlButton(
+                      "Settings",
+                      (event) => {
+                        setMenuAnchor(event.currentTarget);
+                        setShowContextMenu(true);
+                      },
+                      <SettingsIcon />,
+                      "top",
+                      showContextMenu && menuAnchor !== null,
+                    )}
                     {controlButton(
                       fullscreen
                         ? "Exit fullscreen (double-tap)"
@@ -2096,6 +2140,9 @@ function VideoPlayer<metaType, listMetaType>(props: {
                           : context.internal.videoBuffer.value
                       }
                       max={context.internal.maxDuration.value}
+                      seekable={isDurationKnown(
+                        context.internal.maxDuration.value,
+                      )}
                       onStartDragging={() => {}}
                       factor={processedSpeed}
                       main
