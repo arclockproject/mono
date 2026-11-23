@@ -1,83 +1,50 @@
-import { Box, Paper } from "@mui/material";
-import { useEffect, useState } from "react";
+import { Box, Typography } from "@mui/material";
+import {
+  Fragment,
+  type MouseEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { JSX } from "react/jsx-runtime";
+import ContextMenu, { type ContextMenuControl } from "./ContextMenu";
+import FileItem, { type ItemClickHandler } from "./FileItem";
+import { defaultIcon } from "./icons";
+import Toolbar from "./Toolbar";
+import {
+  autoOpenDepth,
+  buildTree,
+  isFolderMarker,
+  rootDepth,
+  toItem,
+} from "./tree";
+import type {
+  Entry,
+  FileBrowserItem,
+  FileBrowserItemProps,
+  FileBrowserMenuItem,
+  FileBrowserView,
+} from "./types";
 
-type processingDivision = {
-  folder: string;
-  children: {
-    path: string;
-    toCompute: string[];
-  }[];
-};
-function prepareProcessingEntry(
-  current: string,
-  root: string,
-): processingDivision {
-  const currentSplit = current.split("/");
-  return {
-    folder: currentSplit.shift() ?? "ERROR",
-    children: [
-      {
-        path: root,
-        toCompute: currentSplit,
-      },
-    ],
-  };
-}
-type Entry = {
-  folder: string;
-  children: Entry[];
-  endName?: string;
-};
-function processor(processingDivision: processingDivision[]): Entry[] {
-  const prepared = processingDivision?.reduce((prev, current) => {
-    // if (current.children[0].toCompute.length === 0) return prev;
-    const existingFolder = prev.find((item) => item.folder === current.folder);
-    if (existingFolder) {
-      existingFolder.children.push(...current.children);
-    } else {
-      prev.push(current);
-    }
-    return prev;
-  }, [] as processingDivision[]);
-
-  return prepared?.map<Entry>((row) => {
-    if (row.children.length === 1 && row.children[0]?.toCompute.length === 0) {
-      return {
-        folder: row.folder,
-        endName: row.children[0]?.path,
-        children: [],
-      };
-    }
-    return {
-      folder: row.folder,
-      children: processor(
-        row.children.map((child) =>
-          prepareProcessingEntry(child.toCompute.join("/"), child.path),
-        ),
-      ),
-    };
-  });
+function startHistory(tree: Entry[]): number[] {
+  return new Array(autoOpenDepth(tree)).fill(0);
 }
 
-function fileSystemFactory(raw: string[]): Entry[] {
-  return processor(raw.map((raw) => prepareProcessingEntry(raw, raw)));
-}
-function depthUntilNotLengthZero<k extends { children: k[] }>(
-  array?: k[],
-): number {
-  if (array?.length === 1) {
-    return 1 + depthUntilNotLengthZero(array[0]?.children);
-  } else {
-    return 0;
-  }
-}
 /**
  * Shows a list of file paths as folders and files that can be browsed by
- * clicking. A breadcrumb bar at the top jumps back up; `^` goes to the root.
+ * clicking. The bar at the top has breadcrumbs, an up button and a grid/list
+ * view switch. Backspace goes up one folder. When the browser is 480px wide or
+ * less, parent folders move into a `...` menu so the bar stays on one line.
  *
  * Single-child folders at the top are opened automatically, so a shared prefix
  * like `/home/user` does not need clicking through.
+ *
+ * Pass the same `fileSystemRaw` array on every render. A new array resets the
+ * browser to its starting folder.
  *
  * @see {@link https://arclockproject.org/docs/common/components/FileBrowser Guide} | {@link https://arclockproject.org/docs/api/common/components/FileBrowser API}
  * @example
@@ -87,7 +54,7 @@ function depthUntilNotLengthZero<k extends { children: k[] }>(
  * />
  */
 function FileBrowser(props: {
-  /** Full file paths, separated by `/`. Folders are built from them. */
+  /** Full file paths, separated by `/`. Folders are built from them. A path ending in `/` adds an empty folder. */
   fileSystemRaw: string[];
   /** Prefix added to every path, e.g. a base URL. */
   base?: string;
@@ -97,125 +64,221 @@ function FileBrowser(props: {
    */
   fillContainer?: boolean;
   /**
+   * Show folders first, then files, each in A-Z order with numbers compared
+   * by value (`2` before `10`). When `false`, items keep the order of `fileSystemRaw`.
+   * @default false
+   */
+  sort?: boolean;
+  /**
    * Called with the full path (including `base`) when a file is clicked.
    *
    * Not called for folders.
    */
   customAction?: (file: string) => void;
+  /**
+   * Called when any file or folder is clicked, before `customAction` runs or
+   * the folder opens. Call `event.preventDefault()` to stop both.
+   * @param item The clicked file or folder.
+   * @param event The click event.
+   */
+  onItemClick?: (item: FileBrowserItem, event: MouseEvent<HTMLElement>) => void;
+  /**
+   * Entries for the right-click menu of a file or folder. Called each time the menu opens.
+   * @param item The right-clicked file or folder.
+   * @returns The menu entries. With `null`, `undefined` or an empty list, the browser's own menu opens instead.
+   */
+  contextMenu?: (
+    item: FileBrowserItem,
+  ) => FileBrowserMenuItem[] | null | undefined;
+  /**
+   * Picks the icon of a file or folder. Shown at 48px in grid view and 24px
+   * in list view. MUI icons and `<img>` are sized to fit.
+   *
+   * Items only re-render when their icon changes. Pass a stable function
+   * (defined outside the component, or with `useCallback`) for large lists.
+   * @param item The file or folder.
+   * @returns The icon, or `null`/`undefined` for the built-in one.
+   */
+  getIcon?: (item: FileBrowserItem) => ReactNode;
+  /**
+   * Draws a file or folder yourself. Attach `onClick` and `onContextMenu` to
+   * keep the built-in behaviour, or leave them out to handle events your own way.
+   * The grid columns and list rows stay the same.
+   *
+   * It is called once per item, so it can't use hooks. Return a component,
+   * e.g. `(props) => <MyTile {...props} />`, to use hooks inside it.
+   * @param props The item, its icon, the built-in handlers and the built-in tile.
+   * @returns Your element, or `null`/`undefined` for the built-in one.
+   */
+  renderItem?: (props: FileBrowserItemProps) => ReactNode;
 }): JSX.Element {
-  const [fileSystem, setFileSystem] = useState<Entry[]>([]);
-  const [depthHistory, setDepthHistory] = useState<number[]>([]);
-  useEffect(() => {
-    const system = fileSystemFactory(
-      props.fileSystemRaw.map((file) => `${props.base ?? ""}${file}`),
-    );
-    setFileSystem(system);
-    setDepthHistory(new Array(depthUntilNotLengthZero(system)).fill(0));
-  }, [props.fileSystemRaw, props.base]);
-  const { target, path } = depthHistory.reduce(
-    (currentFileSystem, nextStep) => ({
-      target: currentFileSystem.target[nextStep]!.children,
-      path: [
-        ...currentFileSystem.path,
-        currentFileSystem.target[nextStep]!.folder,
-      ],
-    }),
-    { target: fileSystem, path: [] as string[] },
+  const sort = props.sort ?? false;
+  const tree = useMemo(
+    () =>
+      buildTree(
+        props.fileSystemRaw.map((file) => `${props.base ?? ""}${file}`),
+        sort,
+      ),
+    [props.fileSystemRaw, props.base, sort],
   );
+  const [history, setHistory] = useState(() => startHistory(tree));
+  const [historyTree, setHistoryTree] = useState(tree);
+  const [view, setView] = useState<FileBrowserView>("grid");
+  const menu = useRef<ContextMenuControl | null>(null);
+
+  if (historyTree !== tree) {
+    setHistoryTree(tree);
+    setHistory(startHistory(tree));
+  }
+
+  useEffect(() => {
+    menu.current?.close();
+  }, [tree]);
+
+  const { path, items } = useMemo(() => {
+    let target = tree;
+    const path: string[] = [];
+    for (const step of history) {
+      const entry = target[step];
+      if (!entry || entry.endName !== undefined) break;
+      path.push(entry.folder);
+      target = entry.children;
+    }
+    const items = target
+      .map((entry, index) => ({ entry, index, item: toItem(entry, path) }))
+      .filter(({ entry }) => !isFolderMarker(entry));
+    return { path, items };
+  }, [tree, history]);
+
+  const getIcon = props.getIcon;
+  const icons = useMemo(
+    () => items.map(({ item }) => getIcon?.(item) ?? defaultIcon(item)),
+    [items, getIcon],
+  );
+
+  const latest = useRef({ props, history, path });
+  useLayoutEffect(() => {
+    latest.current = { props, history, path };
+  });
+
+  const openItem = useCallback((index: number, item: FileBrowserItem) => {
+    const current = latest.current;
+    if (item.isFolder)
+      setHistory([...current.history.slice(0, current.path.length), index]);
+    else current.props.customAction?.(item.path);
+  }, []);
+
+  const onItemClick = useCallback<ItemClickHandler>(
+    (index, item, event) => {
+      latest.current.props.onItemClick?.(item, event);
+      if (!event.defaultPrevented) openItem(index, item);
+    },
+    [openItem],
+  );
+
+  const onItemContextMenu = useCallback<ItemClickHandler>(
+    (_index, item, event) => {
+      const entries = latest.current.props.contextMenu?.(item);
+      if (!entries?.length) return;
+      event.preventDefault();
+      let { clientX: x, clientY: y } = event;
+      if (x === 0 && y === 0) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        x = rect.left + rect.width / 2;
+        y = rect.top + rect.height / 2;
+      }
+      menu.current?.open({ item, x, y, entries });
+    },
+    [],
+  );
+
+  const root = rootDepth(tree);
+  const atRoot = path.length <= root;
+  const goUp = () => setHistory(history.slice(0, path.length - 1));
   const fillContainer = props.fillContainer ?? true;
+
   return (
     <Box
       sx={{
         width: "100%",
         maxWidth: fillContainer ? "100%" : `${8 * 9 + 900}px`,
         height: fillContainer ? "100%" : "700px",
-        p: 1,
-        overflow: "auto",
         display: "flex",
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: "8px",
-        alignContent: "flex-start",
-        wordWrap: "anywhere",
+        flexDirection: "column",
+        overflow: "hidden",
+        containerType: "inline-size",
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Backspace" || atRoot) return;
+        const element = event.target as HTMLElement;
+        if (
+          element.isContentEditable ||
+          /^(INPUT|TEXTAREA|SELECT)$/.test(element.tagName)
+        )
+          return;
+        event.preventDefault();
+        goUp();
       }}
     >
+      <Toolbar
+        path={path}
+        root={root}
+        goTo={(depth) => setHistory(history.slice(0, depth))}
+        itemCount={items.length}
+        view={view}
+        setView={setView}
+      />
       <Box
         sx={{
-          height: "50px",
-          minWidth: "100%",
-          overflowX: "auto",
-          textWrap: "nowrap",
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
+          p: 1,
+          display: view === "grid" ? "grid" : "flex",
+          flexDirection: "column",
+          gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))",
+          alignContent: "start",
+          gap: view === "grid" ? 1 : 0.25,
         }}
       >
-        <Paper
-          sx={{
-            px: 1,
-            minWidth: "20px",
-            height: "50px",
-            display: "inline-flex",
-            borderRadius: "8px",
-            cursor: "pointer",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-          onClick={() => {
-            setDepthHistory([]);
-          }}
-        >
-          ^
-        </Paper>
-        {path.map((file, index) => (
-          <Paper
-            key={file}
-            sx={{
-              px: 1,
-              ml: 1,
-              minWidth: "50px",
-              height: "50px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              display: "inline-flex",
-              textWrap: "nowrap",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-            onClick={() => {
-              setDepthHistory(depthHistory.slice(0, index + 1));
-            }}
+        {items.length === 0 ? (
+          <Typography
+            variant="body2"
+            sx={{ color: "text.secondary", p: 2, gridColumn: "1 / -1" }}
           >
-            {file === "" ? (index === 0 ? "/" : "//") : file}
-          </Paper>
-        ))}
+            This folder is empty.
+          </Typography>
+        ) : null}
+        {items.map(({ index, item }, position) => {
+          const icon = icons[position];
+          const defaultItem = (
+            <FileItem
+              item={item}
+              index={index}
+              icon={icon}
+              view={view}
+              onItemClick={onItemClick}
+              onItemContextMenu={onItemContextMenu}
+            />
+          );
+          return (
+            <Fragment key={`${history.length}-${index}`}>
+              {props.renderItem?.({
+                item,
+                view,
+                icon,
+                onClick: (event) => onItemClick(index, item, event),
+                onContextMenu: (event) => onItemContextMenu(index, item, event),
+                open: () => openItem(index, item),
+                defaultItem,
+              }) ?? defaultItem}
+            </Fragment>
+          );
+        })}
       </Box>
-      {target.map((item, index) => {
-        const name = item.endName;
-        const isFolder = name === undefined;
-        // if (item.folder === "") return undefined;
-        return (
-          <Paper
-            key={`${item.folder}-${depthHistory.length}`}
-            variant={isFolder ? "elevation" : "outlined"}
-            sx={{
-              width: "150px",
-              height: "150px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              padding: "8px",
-              overflowY: "auto",
-              border: isFolder ? undefined : "none",
-            }}
-            onClick={() => {
-              if (props.customAction && name && !name.endsWith("/")) {
-                props.customAction(name);
-              }
-              if (isFolder) setDepthHistory([...depthHistory, index]);
-            }}
-          >
-            {item.endName ? `${item.folder}` : item.folder ? item.folder : "/"}
-          </Paper>
-        );
-      })}
+      <ContextMenu control={menu} />
     </Box>
   );
 }
+export type { FileBrowserItem, FileBrowserItemProps };
 export default FileBrowser;
