@@ -1,3 +1,14 @@
+## 2.1.0 (2026-11-23)
+
+### ✨ Features
+
+- Improved FileBrowser UI and added sort, onItemClick, contextMenu, getIcon and renderItem. ([#19](https://github.com/arclockproject/mono/pull/19)) @arturwagneruk
+- Added subtitles from inside MKV and MP4 videos, selectable subtitle text and a subtitles button to Player. ([#17](https://github.com/arclockproject/mono/pull/17)) @arturwagneruk
+
+### 🐛 Bug Fixes
+
+- Fixed Time.parseTimeDuration not showing --:-- for the Player's unknown duration. ([#17](https://github.com/arclockproject/mono/pull/17)) @arturwagneruk
+
 ## 2.0.0 (2026-11-22)
 
 ### ⚠️ Breaking Changes
