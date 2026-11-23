@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { JSX } from "react/jsx-runtime";
+import { loadEmbeddedTrack } from "./embeddedSubtitles";
 import type { subtitleSettings } from "./globals";
 import {
   activeCues,
@@ -19,62 +20,105 @@ import {
 const useIsomorphicLayoutEffect: typeof useEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-const trackCache = new Map<string, Promise<subtitleTrack>>();
+type trackLoad = {
+  track: subtitleTrack | null;
+  error: string | null;
+  loading: boolean;
+  listeners: Set<() => void>;
+};
+
+const trackCache = new Map<string, trackLoad>();
+
+const trackKey = (url: string, track: number | undefined) =>
+  track === undefined ? url : `${track}:${url}`;
 
 /**
- * Fetches and parses the subtitle file at `url`. Files are cached by URL, so
- * remounting the player doesn't fetch them again. Nothing is fetched while
- * `enabled` is `false`.
+ * Starts loading a subtitle file, or a track inside the video when `track` is
+ * set, unless it is cached. A failed load is removed from the cache, so the
+ * next call tries again.
+ */
+const startTrackLoad = (url: string, track: number | undefined) => {
+  const key = trackKey(url, track);
+  const cached = trackCache.get(key);
+  if (cached) return cached;
+  const load: trackLoad = {
+    track: null,
+    error: null,
+    loading: true,
+    listeners: new Set(),
+  };
+  trackCache.set(key, load);
+  const update = (value: Partial<trackLoad>) => {
+    Object.assign(load, value);
+    for (const listener of load.listeners) listener();
+  };
+  const request =
+    track === undefined
+      ? fetch(url)
+          .then((response) => {
+            if (!response.ok)
+              throw new Error(`The server answered ${response.status}.`);
+            return response.text();
+          })
+          .then(parseSubtitles)
+      : loadEmbeddedTrack(url, track, (partial) => update({ track: partial }));
+  request.then(
+    (value) => update({ track: value, loading: false }),
+    (error: unknown) => {
+      trackCache.delete(key);
+      update({
+        track: null,
+        loading: false,
+        error:
+          error instanceof Error && error.message
+            ? error.message
+            : "The file could not be read.",
+      });
+    },
+  );
+  return load;
+};
+
+/**
+ * Fetches and parses the subtitle file at `url`, or text subtitle track
+ * `track` inside the video at `url`. Results are cached, so remounting the
+ * player doesn't fetch them again. Nothing is fetched while `enabled` is
+ * `false`. A track inside a video shows its lines as they arrive.
  *
- * @returns The parsed track, or `null` while loading, when off, or on error.
+ * @returns The parsed track, or `null` while nothing is loaded yet, when off,
+ * or on error. `loading` stays `true` until the whole track is in.
  */
 function useSubtitleTrack(
   url: string | null | undefined,
+  track: number | undefined,
   enabled: boolean,
-): { track: subtitleTrack | null; error: string | null } {
+): { track: subtitleTrack | null; error: string | null; loading: boolean } {
   const [state, setState] = useState<{
-    url: string | null;
+    key: string | null;
     track: subtitleTrack | null;
     error: string | null;
-  }>({ url: null, track: null, error: null });
+    loading: boolean;
+  }>({ key: null, track: null, error: null, loading: false });
   useEffect(() => {
     if (!url || !enabled) return;
-    let cancelled = false;
-    let request = trackCache.get(url);
-    if (!request) {
-      request = fetch(url)
-        .then((response) => {
-          if (!response.ok)
-            throw new Error(`The server answered ${response.status}.`);
-          return response.text();
-        })
-        .then(parseSubtitles);
-      trackCache.set(url, request);
-      request.catch(() => trackCache.delete(url));
-    }
-    request.then(
-      (track) => {
-        if (!cancelled) setState({ url, track, error: null });
-      },
-      (error: unknown) => {
-        if (!cancelled)
-          setState({
-            url,
-            track: null,
-            error:
-              error instanceof Error && error.message
-                ? error.message
-                : "The file could not be read.",
-          });
-      },
-    );
+    const key = trackKey(url, track);
+    const load = startTrackLoad(url, track);
+    const sync = () =>
+      setState({
+        key,
+        track: load.track,
+        error: load.error,
+        loading: load.loading,
+      });
+    load.listeners.add(sync);
+    sync();
     return () => {
-      cancelled = true;
+      load.listeners.delete(sync);
     };
-  }, [url, enabled]);
-  if (!url || !enabled || state.url !== url)
-    return { track: null, error: null };
-  return { track: state.track, error: state.error };
+  }, [url, track, enabled]);
+  if (!url || !enabled || state.key !== trackKey(url, track))
+    return { track: null, error: null, loading: !!url && enabled };
+  return { track: state.track, error: state.error, loading: state.loading };
 }
 
 type rect = { left: number; top: number; width: number; height: number };
@@ -254,6 +298,14 @@ function SubtitleOverlay(props: {
             boxDecorationBreak: "clone",
             WebkitBoxDecorationBreak: "clone",
             lineHeight: 1.25,
+            ...(settings.selectable
+              ? {
+                  pointerEvents: "auto",
+                  userSelect: "text",
+                  WebkitUserSelect: "text",
+                  cursor: "text",
+                }
+              : undefined),
           }}
         >
           {line.length === 0
@@ -361,10 +413,19 @@ function SubtitleOverlay(props: {
     group.cues.push(cue);
   }
 
+  const stop = settings.selectable
+    ? (event: { stopPropagation: () => void }) => event.stopPropagation()
+    : undefined;
+
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: only keeps clicks on selectable text from reaching the player
     <div
       ref={container}
       aria-live="polite"
+      onPointerDown={stop}
+      onClick={stop}
+      onDoubleClick={stop}
+      onContextMenu={stop}
       style={{
         position: "absolute",
         inset: 0,

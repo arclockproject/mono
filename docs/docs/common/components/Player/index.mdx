@@ -71,7 +71,7 @@ Pass `videoData` to load an entry as soon as the player mounts.
 
 Set `files.subtitles` to a `.vtt`, `.srt` or `.ass`/`.ssa` file. The player draws them itself, so they also show in audio only mode and for videos without a separate audio file. `.ass` fonts, colours, outlines and positions are kept. Animations (`\t`, `\fad`, karaoke) are not played, and fonts must be installed on the viewer's device. Files on another origin need CORS headers.
 
-Viewers turn subtitles on with `C` or the settings menu. **Subtitle settings** changes the size, colour, background, height and timing, and can turn off the file's own styles. These settings are saved.
+Viewers turn subtitles on with `C`, the subtitles button in the controls or the settings menu. **Subtitle settings** changes the size, colour, background, height and timing, and can turn off the file's own styles. **Selectable text** lets viewers select the lines and point at them, e.g. with a pop-up dictionary like Yomitan. Clicks on the text then don't play or pause, and right-click opens the browser's own menu, e.g. to copy. These settings are saved.
 
 Play the video and press `C`. The file below is `.ass`, passed as a `data:` URL.
 
@@ -101,7 +101,12 @@ Dialogue: 0,0:00:10.00,0:00:20.00,Default,,0,0,0,,{\an7\pos(120,240)\fs48}Placed
             files: {
               video: `${REMOTE.base}/PXQZNGjZIFo.mp4`,
               audio: `${REMOTE.base}/PXQZNGjZIFo.m4a`,
-              subtitles: `data:text/plain;charset=utf-8,${encodeURIComponent(ass)}`,
+              subtitles: [
+                {label: "Names Subtitle", url: `data:text/plain;charset=utf-8,${encodeURIComponent(ass)}`}
+                // Add more if needed. Dropdown only shows with 2+
+              ]
+              // Or single if only 1 present
+              // subtitles: `data:text/plain;charset=utf-8,${encodeURIComponent(ass)}`,
               thumbnail: `${REMOTE.base}/PXQZNGjZIFo.webp`,
             },
             id: "original-2-eis3-subtitles",
@@ -119,6 +124,22 @@ Dialogue: 0,0:00:10.00,0:00:20.00,Default,,0,0,0,,{\an7\pos(120,240)\fs48}Placed
   );
 }
 ```
+
+### MKV and MP4 files {#mkv-files}
+
+An `.mkv` file is passed to the `<video>` element as it is, so whether it plays depends on the browser. Chromium-based browsers play most MKV files with H.264 video and AAC audio. Other browsers may not play them at all. Audio in a codec the browser can't decode (AC3, DTS) is silent.
+
+Text subtitle tracks inside the video are listed after the entry's own subtitle files, named after the track's name or language:
+
+- `.mkv` and `.webm`: `.srt`, `.ass` and WebVTT tracks.
+- `.mp4`, `.m4v` and `.mov`: `tx3g` (`mov_text`, what `ffmpeg` writes) and WebVTT tracks.
+
+The player reads only the start of the video, its index and the subtitle lines, with range requests, so the whole file is never downloaded for them. Lines show up while the track loads. This needs:
+
+- A server that supports range requests. Files on another origin also need CORS headers.
+- For `.mkv`, an index that lists the subtitle blocks. `mkvmerge` and `ffmpeg` write one.
+
+Image subtitles (PGS, VobSub), TTML, fonts inside the file and fragmented MP4 files are not supported. Turn the tracks off with `settings.embeddedSubtitles`.
 
 ### 180°, 360° and 3D {#180-360-and-3d}
 
@@ -230,7 +251,7 @@ function main() {
       <div style={{ height: "400px" }}>
         <App />
       </div>
-      <MiniPlayer />
+      {/*<MiniPlayer /> // Toggleable by using internal for now */}
       <AudioHolder />
     </PlayerContextProvider>
   );
@@ -239,7 +260,7 @@ function main() {
 
 ### Sticky mobile player {#sticky-mobile-player}
 
-With `sticky: true`, the video stays at the top on mobile while the page scrolls below it.
+With `sticky: true`, the video stays at the top on mobile while the page scrolls below it. Triggers at about 600px width.
 
 ```tsx live showLineNumbers
 <PlayerContextProvider

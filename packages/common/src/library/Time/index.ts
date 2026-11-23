@@ -11,20 +11,20 @@ const Time = {
    * Formats seconds as a timestamp, like a video player shows: `1:00:05`, `2:00` or `0:06`.
    *
    * Hours are left out when they are 0, and the first unit is not zero-padded.
-   * `356000` means "unknown duration" and gives `"--:--"`.
+   * `356400` means "unknown duration" and gives `"--:--"`.
    *
    * @param time Seconds. A string is read with `parseInt()`, so decimals are dropped.
-   * @returns `H:MM:SS` or `M:SS`. `"--:--"` for `356000`, and `null` if `time` is not a number.
+   * @returns `H:MM:SS` or `M:SS`. `"--:--"` for `356400`, and `null` if `time` is not a number.
    * @example
    * Time.parseTimeDuration(3605);   // "1:00:05"
    * Time.parseTimeDuration(120);    // "2:00"
    * Time.parseTimeDuration(6);      // "0:06"
    * Time.parseTimeDuration("foo");  // null
-   * Time.parseTimeDuration(356000); // "--:--"
+   * Time.parseTimeDuration(356400); // "--:--"
    */
   parseTimeDuration: (time: number | string): string | null => {
     const number = parseInt(time as string, 10);
-    if (number === 356000) return "--:--";
+    if (number === 356400) return "--:--";
     if (Number.isNaN(number)) return null;
     const h = Math.floor(number / 3600);
     const m = Math.floor((number % 3600) / 60);

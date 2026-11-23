@@ -7,6 +7,8 @@ import {
   Chip,
   FormControlLabel,
   IconButton,
+  MenuItem,
+  Select,
   Slider,
   Stack,
   Switch,
@@ -36,7 +38,8 @@ const background = "rgba(18, 18, 18, 0.88)";
 
 /**
  * A panel that slides in over the player from the left or right edge. Clicks,
- * right-clicks and keys inside it don't reach the player.
+ * right-clicks and keys inside it don't reach the player. While it is open,
+ * clicking anywhere else on the player closes it, without playing or pausing.
  */
 function EffectsSidePanel(
   props: PropsWithChildren<{
@@ -50,65 +53,80 @@ function EffectsSidePanel(
   const stop = (event: { stopPropagation: () => void }) =>
     event.stopPropagation();
   return (
-    <Stack
-      role="region"
-      aria-label={props.title}
-      onClick={stop}
-      onContextMenu={stop}
-      onKeyDown={stop}
-      onKeyUp={stop}
-      onTouchMove={stop}
-      sx={(theme) => ({
-        position: "absolute",
-        top: 0,
-        bottom: 0,
-        [props.side]: 0,
-        zIndex: 20,
-        width: "100%",
-        maxWidth: 320,
-        color: "common.white",
-        bgcolor: background,
-        backdropFilter: "blur(6px)",
-        cursor: "auto",
-        transform: props.open ? "none" : `translateX(${offScreen})`,
-        visibility: props.open ? "visible" : "hidden",
-        transition: theme.transitions.create(["transform", "visibility"]),
-      })}
-    >
+    <>
+      {props.open ? (
+        <Box
+          aria-hidden
+          onClick={(event) => {
+            event.stopPropagation();
+            props.onClose();
+          }}
+          onPointerDown={stop}
+          onDoubleClick={stop}
+          onContextMenu={stop}
+          sx={{ position: "absolute", inset: 0, zIndex: 19 }}
+        />
+      ) : undefined}
       <Stack
-        direction="row"
-        alignItems="center"
-        sx={{
-          pl: 2,
-          pr: 0.5,
-          minHeight: 48,
-          borderBottom: 1,
-          borderColor: "rgba(255, 255, 255, 0.12)",
-        }}
+        role="region"
+        aria-label={props.title}
+        onClick={stop}
+        onContextMenu={stop}
+        onKeyDown={stop}
+        onKeyUp={stop}
+        onTouchMove={stop}
+        sx={(theme) => ({
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          [props.side]: 0,
+          zIndex: 20,
+          width: "100%",
+          maxWidth: 320,
+          color: "common.white",
+          bgcolor: background,
+          backdropFilter: "blur(6px)",
+          cursor: "auto",
+          transform: props.open ? "none" : `translateX(${offScreen})`,
+          visibility: props.open ? "visible" : "hidden",
+          transition: theme.transitions.create(["transform", "visibility"]),
+        })}
       >
-        <Typography variant="subtitle1" sx={{ flex: 1 }}>
-          {props.title}
-        </Typography>
-        <IconButton
-          aria-label={`Close ${props.title}`}
-          onClick={props.onClose}
-          sx={{ color: "inherit" }}
+        <Stack
+          direction="row"
+          alignItems="center"
+          sx={{
+            pl: 2,
+            pr: 0.5,
+            minHeight: 48,
+            borderBottom: 1,
+            borderColor: "rgba(255, 255, 255, 0.12)",
+          }}
         >
-          <CloseIcon />
-        </IconButton>
+          <Typography variant="subtitle1" sx={{ flex: 1 }}>
+            {props.title}
+          </Typography>
+          <IconButton
+            aria-label={`Close ${props.title}`}
+            onClick={props.onClose}
+            sx={{ color: "inherit" }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+        <Stack
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowX: "hidden",
+            overflowY: "auto",
+            pb: 2,
+          }}
+        >
+          {props.children}
+        </Stack>
       </Stack>
-      <Stack
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          overflowX: "hidden",
-          overflowY: "auto",
-          pb: 2,
-        }}
-      >
-        {props.children}
-      </Stack>
-    </Stack>
+    </>
   );
 }
 
@@ -634,20 +652,35 @@ function SubtitlesPanel(props: {
           <Box>
             <Typography variant="caption">Track</Typography>
             <Box sx={{ pt: 0.5 }}>
-              <Presets
-                presets={props.files.map((file) => ({
-                  label: file.label,
-                  value: file.label,
-                }))}
-                isActive={(label) => label === props.current}
-                onPick={(label) =>
+              <Select
+                size="small"
+                fullWidth
+                value={props.current ?? ""}
+                inputProps={{ "aria-label": "Subtitle track" }}
+                onChange={(event) =>
                   props.onChange({
                     ...props.value,
-                    track: label,
+                    track: event.target.value,
                     enabled: true,
                   })
                 }
-              />
+                sx={{
+                  color: "common.white",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255, 255, 255, 0.3)",
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255, 255, 255, 0.6)",
+                  },
+                  "& .MuiSvgIcon-root": { color: "common.white" },
+                }}
+              >
+                {props.files.map((file) => (
+                  <MenuItem key={file.label} value={file.label}>
+                    {file.label}
+                  </MenuItem>
+                ))}
+              </Select>
             </Box>
           </Box>
         ) : undefined}
@@ -665,6 +698,15 @@ function SubtitlesPanel(props: {
             }
           />
         ) : undefined}
+        <FormControlLabel
+          label="Selectable text, e.g. for pop-up dictionaries"
+          control={
+            <Switch
+              checked={props.value.selectable}
+              onChange={(_event, on) => set("selectable")(on)}
+            />
+          }
+        />
       </Section>
       <Section title="Text">
         <LabeledSlider

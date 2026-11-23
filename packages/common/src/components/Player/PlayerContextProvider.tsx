@@ -14,6 +14,7 @@ import {
   DEFAULT_VIDEO_FILTERS,
   DEFAULT_VIDEO_FORMAT,
   getBufferedEnd,
+  isDurationKnown,
   isSameOrigin,
   type settings,
   type subtitleSettings,
@@ -833,7 +834,11 @@ const PlayerContextProvider = <metaType, listMetaType>(
             // e.currentTarget.currentTime = playerPosition.value;
           },
           actionOnDurationChange: (e) => {
-            setMaxDuration(e.currentTarget.duration);
+            setMaxDuration(
+              isDurationKnown(e.currentTarget.duration)
+                ? e.currentTarget.duration
+                : DEFAULT_MAX_DURATION,
+            );
           },
           actionOnTimeUpdate: (e, type) => {
             const bufferedEnd = getBufferedEnd(e.currentTarget);
