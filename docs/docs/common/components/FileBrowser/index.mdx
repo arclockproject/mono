@@ -6,7 +6,7 @@ description: "Browse a list of file paths as folders and files."
 ## Dependencies {#dependencies}
 
 ```bash npm2yarn
-npm install @mui/material @emotion/react @emotion/styled
+npm install @mui/material @mui/icons-material @emotion/react @emotion/styled
 ```
 
 ## Usage {#usage}
@@ -15,15 +15,22 @@ npm install @mui/material @emotion/react @emotion/styled
 import FileBrowser from "@arclockproject/common/components/FileBrowser";
 ```
 
+- Use the breadcrumbs or the up button to go back. Backspace also goes up one folder.
+- The breadcrumbs stay on one line. A long path scrolls sideways, and when the browser is 480px
+  wide or less, parent folders move into a `...` menu.
+- The button group in the top right switches between grid and list view.
+- `customAction` runs when a file is clicked. `onItemClick` runs for files and folders, and can stop
+  the default action.
+- `contextMenu` adds your own right-click menu. Items without entries get the browser's menu.
+
+Pass the same array on every render (e.g. with `useMemo`). A new array resets the browser to
+the starting folder.
+
 The examples below are live. Edit the code to try your own values.
 
 ### Browsing files {#browsing-files}
 
-A base path of `/home/user` and 5 files. `customAction` runs when you click a file (not a
-folder). Here it shows the path below the browser.
-
-Pass the same array on every render (e.g. with `useMemo`). A new array resets the browser to
-the top folder.
+A base path of `/home/user` and 5 files. Click a file to show its path below the browser.
 
 ```tsx live
 function FileBrowserExample() {
@@ -48,19 +55,123 @@ function FileBrowserExample() {
 
 ### Your own files {#your-own-files}
 
-One path per line. Folders are made from the parts of each path.
+One path per line. Folders are made from the parts of each path, and a path ending in `/` adds
+an empty folder. Tick **Sort** to show folders first, then files in A-Z order.
 
 ```tsx live
 function FileBrowserPlayground() {
   const [paths, setPaths] = useState(
-    ["/src/index.ts", "/src/components/Button.tsx", "/src/components/Card.tsx", "/README.md"].join("\n")
+    [
+      "/src/index.ts", "/src/components/Button.tsx", "/src/components/Card.tsx", "/README.md",
+      "/empty/", "/assets/audio.mp3", "/assets/icon.ico", "/assets/archive.zip", "/assets/video.mov"
+    ].join("\n")
   );
+  const [sort, setSort] = useState(false);
   const files = useMemo(() => paths.split("\n").filter(Boolean), [paths]);
 
   return (
     <div>
-      <textarea value={paths} onChange={(e) => setPaths(e.target.value)} rows={5} style={{ width: "100%" }} />
-      <FileBrowser fileSystemRaw={files} />
+      <textarea value={paths} onChange={(e) => setPaths(e.target.value)} rows={9} style={{ width: "100%" }} />
+      <label>
+        <input type="checkbox" checked={sort} onChange={(e) => setSort(e.target.checked)} /> Sort
+      </label>
+      <FileBrowser fileSystemRaw={files} sort={sort} />
+    </div>
+  );
+}
+```
+
+### Custom click and right-click menu {#custom-click-and-right-click-menu}
+
+Clicking a file selects it instead of opening it. Right-click a file or folder for its menu.
+`getIcon` gives Markdown files their own icon.
+
+```tsx live
+function FileBrowserMenu() {
+  const [selected, setSelected] = useState(null);
+  const [log, setLog] = useState("Nothing yet");
+  const files = useMemo(
+    () => ["/notes/todo.md", "/notes/ideas.md", "/photos/cat.jpg", "/photos/dog.jpg", "/report.pdf"],
+    [],
+  );
+
+  return (
+    <div>
+      <FileBrowser
+        fileSystemRaw={files}
+        sort
+        onItemClick={(item, event) => {
+          if (item.isFolder) return;
+          event.preventDefault();
+          setSelected(item.path);
+        }}
+        contextMenu={(item) => [
+          { label: "Copy path", icon: "📋", onClick: () => navigator.clipboard?.writeText(item.path) },
+          { label: `Rename ${item.name}`, icon: "✏️", onClick: () => setLog(`Rename ${item.path}`) },
+          "divider",
+          { label: "Delete", icon: "🗑️", disabled: item.isFolder, onClick: () => setLog(`Delete ${item.path}`) },
+        ]}
+        getIcon={(item) => (item.extension === "md" ? <span>📝</span> : null)}
+      />
+      <p>Selected: <code>{selected ?? "nothing yet"}</code></p>
+      <p>Last menu action: <code>{log}</code></p>
+    </div>
+  );
+}
+```
+
+### Custom items {#custom-items}
+
+`renderItem` draws images as your own element with a star button. Folders and other files keep the
+built-in look. Click a name to open it, or the star to toggle it. Switch to list view to see the row layout.
+
+```tsx live
+function FileBrowserCustomItems() {
+  const [starred, setStarred] = useState([]);
+  const [opened, setOpened] = useState(null);
+  const files = useMemo(
+    () => ["/photos/cat.jpg", "/photos/dog.jpg", "/photos/raw/cat.cr2", "/notes.txt"],
+    [],
+  );
+
+  return (
+    <div>
+      <FileBrowser
+        fileSystemRaw={files}
+        customAction={setOpened}
+        renderItem={({ item, view, icon, onClick, onContextMenu }) => {
+          if (item.extension !== "jpg") return null;
+          const isStarred = starred.includes(item.path);
+          return (
+            <div
+              onContextMenu={onContextMenu}
+              style={{
+                display: "flex",
+                flexDirection: view === "grid" ? "column" : "row",
+                alignItems: "center",
+                gap: 4,
+                padding: 8,
+                borderRadius: 8,
+                border: "1px dashed currentColor",
+                fontSize: view === "grid" ? 48 : 24,
+              }}
+            >
+              <span style={{ cursor: "pointer" }} onClick={onClick}>{icon}</span>
+              <span style={{ fontSize: 14, cursor: "pointer", flex: 1 }} onClick={onClick}>{item.name}</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setStarred((list) => (isStarred ? list.filter((p) => p !== item.path) : [...list, item.path]))
+                }
+              >
+                {isStarred ? "★" : "☆"}
+              </button>
+            </div>
+          );
+        }}
+      />
+      <p>Opened: <code>{opened ?? "nothing yet"}</code></p>
+      <p>Starred: <code>{starred.join(", ") || "none"}</code></p>
     </div>
   );
 }
