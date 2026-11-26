@@ -50,6 +50,12 @@ const firewall = Firewall(
     loginPage: (req, res, info) => res.status(401).send(renderLogin(info)),
     blocked: (req, res, reason) => res.status(403).send(reason),
     accessDenied: (req, res, next, info) => res.status(403).send(`No access to ${info.path}`),
+    // If you don't want next route to handle errors you can harden the firewall.
+    hardened: true, // an error never lets the request through, not even to Express's error handler
+    onError: (err, req, res) => { // required with hardened, and must answer the request
+      console.error(err);
+      res.status(500).send("Something went wrong");
+    },
   },
 );
 const p = firewall.permissions;
@@ -76,6 +82,12 @@ app.post("/logout", async (req, res) => {
 - **`firewall.userID(req)`** gives the logged-in user, and **`firewall.logout(req, res)`** logs
   them out.
 - Errors thrown in your callbacks go to `next(err)`, so Express's error handler deals with them.
+  To handle them yourself, set `onError`. It runs instead of `next(err)`, in the login middleware
+  and in `protect`.
+- With `hardened: true`, an error is never passed further, not even to Express's error
+  handler. `onError` is then required and must answer the request, e.g. with
+  `res.status(500).end()`, since its `next` does nothing. An error thrown in `onError` is
+  dropped, so answer the request first, or the client will need to wait till it times out.
 - Passwords and API keys are never passed to `onFailedLogin`, so they don't end up in your logs.
 
 ### Permissions {#permissions}

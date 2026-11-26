@@ -1,5 +1,6 @@
 import type {
   FirewallMiddleware,
+  FirewallNext,
   FirewallOptions,
   FirewallRequest,
   FirewallSession,
@@ -95,9 +96,37 @@ function createFirewallMiddleware<Req extends FirewallRequest, Res>(
           result.status === "wrong-password" ? credentials.username : undefined,
       });
     } catch (err) {
-      next(err);
+      await handleError(options, err, req, res, next);
     }
   };
 }
 
-export { createFirewallMiddleware };
+/**
+ * Passes an error to `onError`, or to `next(err)` without it. With `hardened`, `next` is never
+ * called and an error thrown in `onError` is dropped.
+ *
+ * @param options The firewall's options.
+ * @param err The error.
+ * @param req The request.
+ * @param res The response.
+ * @param next The request's `next`.
+ */
+async function handleError<Req, Res>(
+  options: FirewallOptions<Req, Res>,
+  err: unknown,
+  req: Req,
+  res: Res,
+  next: FirewallNext,
+): Promise<void> {
+  if (!options.onError) {
+    if (!options.hardened) next(err);
+    return;
+  }
+  try {
+    await options.onError(err, req, res, options.hardened ? () => {} : next);
+  } catch (error) {
+    if (!options.hardened) next(error);
+  }
+}
+
+export { createFirewallMiddleware, handleError };

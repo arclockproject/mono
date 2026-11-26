@@ -95,6 +95,11 @@ function Firewall<
   permissions: Permissions,
   options: FirewallOptions<Req, Res>,
 ): FirewallInstance<Permissions, Req, Res> {
+  if (options.hardened && !options.onError) {
+    throw new Error(
+      "Firewall: hardened needs onError to answer requests that fail.",
+    );
+  }
   const ids = permissions as unknown as PermissionIDs<Permissions>;
   const session =
     options.session ?? (expressSession as FirewallSession<Req, Res>);
