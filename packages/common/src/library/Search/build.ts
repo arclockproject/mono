@@ -351,7 +351,7 @@ function orderClause(
  */
 function createSelect<Column extends string, Sort extends string, Context>(
   options: SearchSelectOptions<Column, Sort, Context>,
-): SearchBuilder<Context> {
+): SearchBuilder<Context, Sort> {
   const dialect = options.dialect ?? "mysql";
   const resolver = createResolver(options);
   const usable = new Set(resolver.names.values());
@@ -369,7 +369,7 @@ function createSelect<Column extends string, Sort extends string, Context>(
   if (fields === "") throw new SearchError("No columns to select.");
   const tieBreak = [...new Set<string>(options.tieBreak)];
 
-  return {
+  return withTyped({
     build: (input) => {
       const raw = readTerms(readText(input.text), options);
       const terms = raw.map((r) => {
@@ -393,7 +393,7 @@ function createSelect<Column extends string, Sort extends string, Context>(
           : `${fields}, ${hash()} AS ${quote(dialect, RANDOM_COLUMN)}`;
       const where = whereClause([
         filterSQL(options.filter, params, input.context as Context),
-        termsCondition(terms, resolver.search, params),
+        termsCondition(terms, resolver, params),
         paging.values
           ? afterCondition(
               paging.names.map(key),
@@ -412,7 +412,19 @@ function createSelect<Column extends string, Sort extends string, Context>(
         result: (rows) => toPage(paging, rows),
       } satisfies SearchSQL;
     },
-  };
+  });
+}
+
+/**
+ * Adds `buildTyped` to a builder. It is the same function as `build`, with a typed input.
+ *
+ * @param builder The builder.
+ * @returns The builder with `buildTyped`.
+ */
+function withTyped<Context, Sort extends string, Source extends string>(
+  builder: Pick<SearchBuilder<Context>, "build">,
+): SearchBuilder<Context, Sort, Source> {
+  return { build: builder.build, buildTyped: builder.build };
 }
 
 /**
@@ -432,7 +444,7 @@ function createUnion<
   Context,
 >(
   options: SearchUnionOptions<Output, Source, Sort, Context>,
-): SearchBuilder<Context> {
+): SearchBuilder<Context, Sort, Source> {
   const dialect = options.dialect ?? "mysql";
   for (const name of options.output) {
     if (!SAFE_NAME.test(name)) {
@@ -497,7 +509,7 @@ function createUnion<
   });
   if (sources.length === 0) throw new SearchError("No sources are set.");
 
-  return {
+  return withTyped({
     build: (input) => {
       const text = readText(input.text);
       const raw = readTerms(text, options);
@@ -545,7 +557,7 @@ function createUnion<
             : (s.expressions.get(name) as string);
         const where = whereClause([
           filterSQL(s.source.filter, params, input.context as Context),
-          termsCondition(terms, s.resolver.search, params),
+          termsCondition(terms, s.resolver, params),
           paging.values
             ? afterCondition(
                 paging.names.map(key),
@@ -580,7 +592,7 @@ function createUnion<
         result: (rows) => toPage(paging, rows),
       } satisfies SearchSQL;
     },
-  };
+  });
 }
 
 export { createSelect, createUnion };

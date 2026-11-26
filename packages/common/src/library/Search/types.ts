@@ -60,6 +60,12 @@ type SearchOptions<Column extends string> = {
    */
   search?: readonly Column[];
   /**
+   * Columns compared without case, e.g. for columns with a `_bin` collation. Free-text keys,
+   * `column:value`, `=` and `!=` on them compare `LOWER(column)` with `LOWER(value)`, so `cat`
+   * finds `Cat`. `=` on them can't use an index. Sorting and paging still use the stored values.
+   */
+  caseInsensitive?: readonly Column[];
+  /**
    * Other names the search text may use for a column, e.g. `{ description: ["desc"] }` lets
    * `desc=hello` mean `description=hello`. Names are matched without case.
    */
@@ -186,7 +192,7 @@ type SearchSelectOptions<
  */
 type SearchUnionSource<Output extends string, Context> = Pick<
   SearchOptions<string>,
-  "columns" | "exclude" | "search" | "alias"
+  "columns" | "exclude" | "search" | "caseInsensitive" | "alias"
 > & {
   /** What to select from, as SQL written by you, e.g. `"books"` or `"(SELECT …) AS p"`. */
   from: string;
@@ -220,7 +226,8 @@ type SearchUnionOptions<
      */
     output: readonly Output[];
     /**
-     * An `output` column filled with the name of the table the row came from, e.g. `"service"`.
+     * An `output` column filled with the key in `sources` the row came from, e.g. `"service"`.
+     * A row from `sources: { book: { from: "v1_books" } }` gets `"book"`, not `"v1_books"`.
      * When set, it must be in `tieBreak`, because ids can repeat across tables.
      */
     sourceColumn?: NoInfer<Output>;
@@ -241,8 +248,8 @@ type SearchBuildInput<Context> = {
   /** The search text. Missing means no search. Anything else that is not a string is an error. */
   text?: unknown;
   /**
-   * For a union: the tables to search, as an array or a comma-separated string. Unknown names
-   * are ignored. Missing means all tables.
+   * For a union: the keys in `sources` to search, as an array or a comma-separated string.
+   * Unknown names are ignored. Missing means all tables.
    */
   sources?: unknown;
   /** A name from `sort`. Anything else uses `defaultSort`. */
@@ -263,6 +270,31 @@ type SearchBuildInput<Context> = {
   after?: unknown;
   /** The `prev` cursor of the page after. Gives the page before it. Not used when `after` is set. */
   before?: unknown;
+  /** Passed to `filter` functions. */
+  context?: Context;
+};
+
+/**
+ * What your own code asks for in {@link SearchBuilder.buildTyped}. The same fields as
+ * {@link SearchBuildInput}, but typed, so names from the settings autocomplete.
+ */
+type SearchTypedInput<Context, Sort extends string, Source extends string> = {
+  /** The search text. */
+  text?: string;
+  /** For a union: the keys in `sources` to search. Missing means all tables. */
+  sources?: readonly Source[];
+  /** A name from `sort`. Missing uses `defaultSort`. */
+  sort?: Sort;
+  /** Missing uses `defaultOrder`. */
+  order?: "asc" | "desc";
+  /** Seed for random sorting, a whole number. */
+  seed?: number;
+  /** The page number, from 1. Not used when `after` or `before` is set. */
+  page?: number;
+  /** The `next` cursor of the page before. */
+  after?: string;
+  /** The `prev` cursor of the page after. Not used when `after` is set. */
+  before?: string;
   /** Passed to `filter` functions. */
   context?: Context;
 };
@@ -300,6 +332,9 @@ type SearchSQL = {
    * Turns the rows the database returned into a page with `next` and `prev` cursors. The query
    * asks for one extra row to know if there is a next page, and `result` drops it.
    *
+   * The rows keep the type they are passed with. For untyped (`any`) rows, set it with
+   * `result<MyRow>(rows)`.
+   *
    * @param rows The rows returned for `text`.
    * @returns The page.
    * @throws {Error} If a row is missing a `sort` or `tieBreak` column.
@@ -310,7 +345,11 @@ type SearchSQL = {
 /**
  * Builds a full query from what a request asks for.
  */
-type SearchBuilder<Context> = {
+type SearchBuilder<
+  Context,
+  Sort extends string = string,
+  Source extends string = string,
+> = {
   /**
    * Builds the query.
    *
@@ -319,6 +358,17 @@ type SearchBuilder<Context> = {
    * @throws {SearchError} If the search text or a cursor can't be used.
    */
   build: (input: SearchBuildInput<Context>) => SearchSQL;
+  /**
+   * Builds the query like `build`, for queries written in your own code. The input is typed, so
+   * `sort` and `sources` only take names from the settings.
+   *
+   * @param input What to ask for.
+   * @returns The SQL and its parameters.
+   * @throws {SearchError} If the search text or a cursor can't be used.
+   * @example
+   * const query = posts.buildTyped({ sort: "likes", order: "desc" });
+   */
+  buildTyped: (input: SearchTypedInput<Context, Sort, Source>) => SearchSQL;
 };
 
 export type {
@@ -333,6 +383,7 @@ export type {
   SearchSortOptions,
   SearchSQL,
   SearchTerm,
+  SearchTypedInput,
   SearchUnionOptions,
   SearchUnionSource,
   SearchValue,

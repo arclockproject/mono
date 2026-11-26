@@ -57,6 +57,51 @@ Request values can be passed as they are: anything missing or invalid falls back
 search text throws a `SearchError` with `status: 400`, so Express answers "400 Bad Request". Its
 `position` says where in the text the problem is.
 
+### Typed queries and rows {#typed-queries-and-rows}
+
+`build` takes request values as they are, so its input is loose. For queries written in your own
+code, like a "top posts" endpoint, use `buildTyped`. It works the same, but its input is typed:
+`sort` only takes names from `sort`, `order` only `"asc"` or `"desc"`, and `seed` and `page` are
+numbers.
+
+`result` gives the rows the type your database driver returns, so pass a row type to the query.
+With Prisma, pick the columns from the generated model type. A column the model doesn't have is
+then a type error:
+
+```tsx
+import type { post } from "./generated/prisma/client";
+
+const postColumns = ["id", "title", "body", "author", "likes"] as const;
+type PostRow = Pick<post, (typeof postColumns)[number]>;
+
+const posts = Search.select({
+  from: "posts",
+  filter: "deleted = 0",
+  columns: postColumns,
+  search: ["title", "body"],
+  sort: { likes: "likes", title: "title", random: Search.random },
+  tieBreak: ["id"],
+});
+
+app.get("/posts/top", async (req, res, next) => {
+  try {
+    const query = posts.buildTyped({ sort: "likes", order: "desc" });
+    const { rows } = query.result(await db.query<PostRow[]>(query.text, query.params)); // or query.result<PostRow>(...)
+    res.json(rows); // PostRow[]
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+- `query.result<PostRow>(rows)` sets the row type too, but only when the driver returns `any`.
+  Rows typed as `object` need the type on the query, as above.
+- Rows come back with the database column names. If your Prisma schema renames columns with
+  `@map`, the model type has different names, so write the row type yourself.
+- With the Prisma client, run the query with
+  `prisma.$queryRawUnsafe<PostRow[]>(query.text, ...query.params)`. Set `dialect: "postgres"` for
+  Postgres.
+
 ### Search text {#search-text}
 
 The text is split on spaces, and every part must match:
@@ -72,9 +117,15 @@ The text is split on spaces, and every part must match:
 
 - Quote a value to include spaces: `author="Jack Brown"`. Quoting the whole part,
   `"author=Jack Brown"`, searches for that text instead.
+- `^` and `$` only work for free-text keys and `:`. With `=` they are part of the value, so
+  `title="^Last"` looks for a title that is exactly `^Last`. Use `title:^Last` for "starts with".
 - A `\` makes the next character plain, e.g. `\^`, `\$` or `\"`.
 - An empty (`NULL`) column never matches, so `-cat` and `author!=Jack` keep rows where the column is
   empty.
+- Whether `cat` finds `Cat` depends on the database: MySQL and MariaDB ignore case by default,
+  Postgres doesn't. List columns in `caseInsensitive` to always ignore case on them, e.g. for
+  columns with a `_bin` collation, without changing the database. Sorting and paging still use the
+  stored values.
 - Only names in `columns` (minus `exclude`) can be used, also through `alias`. Any other name, like
   `password=x`, is an error with the same message as a column that doesn't exist.
 
@@ -129,23 +180,60 @@ Rows are always in one fixed order: the chosen `sort` column, then the `tieBreak
 `tieBreak` columns must be different for every row together, usually just the id. Without that,
 rows with the same sort value could swap places between pages.
 
+- **`sort` in `build`** takes a name from your `sort` setting, not a column name. With
+  `sort: { publish_time: "published", random: Search.random }`, the request sends `publish_time` or
+  `random`. Any other value uses `defaultSort`, which is the first name unless set.
+- **Sort and `tieBreak` columns** must be in `columns` and not in `exclude`. Excluded columns can't
+  be sorted by. With your own `fields`, select them by name, since `result` needs them in every row.
 - **`after` and `before`** take the `next` and `prev` cursors from `result`. Paging this way shows
   every row exactly once, even while rows are added or removed. Only a row whose sort value changes
   while someone pages can move.
 - **`page`** jumps to a page number with `OFFSET`. That is exact while nothing changes. Use
   `maxPage` to limit how deep someone can jump, since a large `OFFSET` is slow.
+- **`pageSize`** is set once per search, not per request. For an endpoint that needs another size,
+  define a second search.
 - **`Search.random`** as a sort value gives a random order that stays the same for the same `seed`,
   so pages don't overlap. Without a seed, one is picked and returned as `seed` by `result`. It
   works with MySQL, MariaDB and Postgres, not SQLite.
 - For fast pages, index each table on the sort column followed by the `tieBreak` columns, e.g.
   `INDEX (likes, id)`.
 
+#### Cursors {#cursors}
+
+`next` and `prev` are plain strings. Send them to the frontend as they are, and pass them back
+unchanged. There's no need to `JSON.stringify` or `JSON.parse` them:
+
+```tsx
+res.json(query.result(rows)); // { rows, page, next: "eyJ...", prev: null }
+
+fetch(`/posts/search?q=${encodeURIComponent(q)}&after=${page.next}`); // next page
+fetch(`/posts/search?q=${encodeURIComponent(q)}&before=${page.prev}`); // page before
+```
+
+| From `result` | Back into `build` as | Gives |
+|---|---|---|
+| `next` | `after` | the next page, `null` on the last page |
+| `prev` | `before` | the page before, `null` on the first page |
+
+- Send the same `text`, `sort` and `order` with a cursor. A cursor from another search throws "This
+  page link is for a different search". Any string that isn't a cursor, like `"abc"`, throws "This
+  page link is not valid". Both are a `SearchError` with `status: 400`.
+- With a cursor, `page` and `seed` are not used. The cursor has its own page number and seed.
+- Cursors are URL-safe, so they can go straight into a query string.
+- Cursors are not secret or signed. Anyone can read the last row's sort and `tieBreak` values in
+  them, so don't sort by private columns. Changing a cursor only moves to another place in the same
+  search: its values are sent as parameters, and `filter` still applies.
+
 ### Several tables {#several-tables}
 
 `Search.union` searches several tables as if they were one. Every table gives the same `output`
 columns. A column a table doesn't have is `NULL` there, and `select` maps differently named
-columns. `sourceColumn` holds the table's name, and must be in `tieBreak`, because ids can repeat
-across tables.
+columns.
+
+`sourceColumn` holds the source's **key** in `sources`, not its table name. Below, rows from the
+`photos` table get `service: "photo"`, and rows from `books` get `service: "book"`. The table name
+in `from` is only used in the SQL and never shows up in the rows. `sourceColumn` must be in
+`tieBreak`, because ids can repeat across tables.
 
 ```tsx
 const library = Search.union({
@@ -166,13 +254,97 @@ const library = Search.union({
 });
 
 const query = library.build({ text: req.query.q, sources: req.query.types, sort: req.query.sort, after: req.query.after });
+query.result(rows).rows; // [{ service: "photo", id: 3, ... }, { service: "book", id: 3, ... }]
 ```
 
 - A term on a column only some tables have, like `artist=Jim`, leaves the other tables out. A `-`
   term, like `-artist=Jim`, is skipped for them instead. A column no table has is an error.
-- `sources` (e.g. `?types=photo,book`) limits which tables are searched.
 - Each table returns only the rows that can be on the page, so the pages are the same as one big
   table without reading every row.
+- `sourceColumn` can have any name in `output`, e.g. `category`. Names can't start with
+  `_search_`. Without `sourceColumn`, no such column is added, and `tieBreak` must then be unique
+  across all tables on its own, e.g. a UUID.
+- A union with a single source works too. It gives you `sourceColumn` without extra SQL, the same
+  row shape as your other union searches, and room to add tables later.
+
+`sources` in `build` (e.g. `?types=photo,book`) limits which tables are searched. It takes the keys,
+not the table names:
+
+| `sources` | Searches |
+|---|---|
+| left out | all sources |
+| `["book"]` | only `book` |
+| `[]`, `""` (e.g. `?types=`), or only unknown keys | none, so the page is empty |
+
+To search everything when nothing is selected, pass `sources: req.query.types || undefined`.
+
+#### Columns, select and alias {#columns-select-and-alias}
+
+In a source, `columns` and `select` do different things:
+
+- `columns` are what the search text can use on this source, by the source's own names.
+- `select` fills an `output` column with SQL, e.g. `{ published: "published_date" }`.
+
+A column only in `select` is returned and can be sorted by, but not searched. A column also in
+`columns` can be searched, but by the source's name: `published_date>2020`, not `published>2020`.
+Add an `alias` so the search text uses the same name as the rows:
+
+```tsx
+book: {
+  from: "books",
+  columns: ["id", "title", "published_date"],
+  alias: { published_date: ["published"] },
+  select: { published: "published_date" },
+},
+```
+
+### Joins and subqueries {#joins-and-subqueries}
+
+Column names are written without a table name, like `` `id` ``. When `from` joins tables that
+share a column name, that is ambiguous. Wrap the join in a subquery, so the search sees one plain
+set of columns:
+
+```tsx
+const posts = Search.select({
+  from: `(
+    SELECT p.id, p.title, p.likes, u.name AS author
+    FROM posts AS p
+    JOIN users AS u ON u.id = p.author_id
+  ) AS posts`,
+  columns: ["id", "title", "likes", "author"], // All must be present in "from"
+  search: ["title", "author"],
+  sort: { likes: "likes" },
+  tieBreak: ["id"],
+});
+```
+
+Now `author:Jim` searches the user's name from the other table.
+
+- Computed columns work the same way, e.g. `CONCAT(first_name, ' ', last_name) AS name`.
+- For several values per row, like tags, aggregate them in a grouped subquery with
+  `GROUP_CONCAT` or `JSON_ARRAYAGG` and join that. `tags:cat` then also finds `catalog`, and `^`
+  and `$` apply to the whole text, not to one tag.
+- A view, like `from: "posts_with_authors"`, works the same and is easier to check with `EXPLAIN`.
+- MySQL, MariaDB and Postgres merge simple subqueries like these into the outer query, so indexes
+  on the tables are still used.
+
+#### A fixed value {#a-fixed-value}
+
+To return the same value in every row, like a union's `sourceColumn`, add it in `fields`. It costs
+nothing, and it is returned but can't be searched:
+
+```tsx
+Search.select({
+  from: "posts",
+  columns: ["id", "title", "likes"],
+  fields: "'post' AS service, `id`, `title`, `likes`",
+  sort: { likes: "likes" },
+  tieBreak: ["id"],
+});
+```
+
+With `fields`, you list the selected columns yourself. If you already need a subquery, put it
+there instead: `from: "(SELECT *, 'post' AS service FROM posts) AS posts"`.
 
 ### Rows that must stay private {#rows-that-must-stay-private}
 
@@ -183,8 +355,11 @@ settings, so the search text can't change the SQL. To keep data private:
   so the search can only narrow it. A function filter can use request data:
   ``filter: (param, req) => `owner_id = ${param(req.userID)}` ``, with `context: req` in `build`.
   A filter that gives no SQL throws instead of searching every row.
+- `filter` keeps the rows where it is true. With `filter: "hidden = 0"`, rows where `hidden` is any
+  other value or `NULL` are left out. Columns used only in `filter`, like `hidden`, don't need to
+  be in `columns`. They are not returned and can't be searched.
 - Only put columns the user may see in `columns`. Any searchable column can be guessed one letter at
-  a time with `col:^a`, `col:^ab`, …
+  a time with `col:^a`, `col:^ab`, and so on.
 - Without `fields`, only `columns` minus `exclude` are selected. SQL you write in `from`, `fields`,
   `select` and `filter` is not checked, so never build it from request data.
 - For a second layer, point `from` at a view that already leaves out the private rows.

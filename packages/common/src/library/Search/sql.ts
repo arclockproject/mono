@@ -1,4 +1,4 @@
-import { matchesMissing } from "./terms";
+import { matchesMissing, type Resolver } from "./terms";
 import type {
   SearchDialect,
   SearchOperator,
@@ -81,16 +81,20 @@ function likePattern(term: {
  * Builds the SQL condition for one term.
  *
  * @param term The term, with its real column name.
- * @param search Real names of the columns checked for free-text keys.
+ * @param columns The table's `search` and `caseInsensitive` columns, by real name.
  * @param params Where the values go.
  * @returns The condition.
  */
 function termCondition(
   term: SearchTerm,
-  search: readonly string[],
+  columns: Pick<Resolver, "search" | "caseInsensitive">,
   params: Params,
 ): string {
   const { dialect } = params;
+  const lower = (column: string, sql: string, value: string) =>
+    columns.caseInsensitive.has(column)
+      ? [`LOWER(${sql})`, `LOWER(${value})`]
+      : [sql, value];
   const text = (column: string) => {
     const quoted =
       dialect === "postgres"
@@ -99,18 +103,29 @@ function termCondition(
     return term.negate ? `COALESCE(${quoted}, '')` : quoted;
   };
   if (term.column === undefined || term.operator === ":") {
-    const columns = term.column === undefined ? search : [term.column];
+    const names = term.column === undefined ? columns.search : [term.column];
     const pattern = likePattern(term);
-    const parts = columns.map(
-      (c) => `${text(c)} LIKE ${params.add(pattern)} ESCAPE '!'`,
-    );
+    const parts = names.map((c) => {
+      const [left, right] = lower(c, text(c), params.add(pattern));
+      return `${left} LIKE ${right} ESCAPE '!'`;
+    });
     const condition = parts.join(" OR ");
     if (term.negate) return `NOT (${condition})`;
     return parts.length === 1 ? condition : `(${condition})`;
   }
   const numeric =
     term.operator !== "=" && term.operator !== "!=" && NUMBER.test(term.value);
-  const condition = `${quote(dialect, term.column)} ${SQL_OPERATORS[term.operator]} ${params.add(numeric ? Number(term.value) : term.value)}`;
+  const quoted = quote(dialect, term.column);
+  const value = params.add(numeric ? Number(term.value) : term.value);
+  const [left, right] =
+    columns.caseInsensitive.has(term.column) &&
+    (term.operator === "=" || term.operator === "!=")
+      ? [
+          `LOWER(${dialect === "postgres" ? `${quoted}::text` : quoted})`,
+          `LOWER(${value})`,
+        ]
+      : [quoted, value];
+  const condition = `${left} ${SQL_OPERATORS[term.operator]} ${right}`;
   return matchesMissing(term) ? `(${condition}) IS NOT TRUE` : condition;
 }
 
@@ -118,16 +133,18 @@ function termCondition(
  * Builds the condition for all terms. Every term must match.
  *
  * @param terms The terms, with their real column names.
- * @param search Real names of the columns checked for free-text keys.
+ * @param columns The table's `search` and `caseInsensitive` columns, by real name.
  * @param params Where the values go.
  * @returns The condition, or `""` when there are no terms.
  */
 function termsCondition(
   terms: readonly SearchTerm[],
-  search: readonly string[],
+  columns: Pick<Resolver, "search" | "caseInsensitive">,
   params: Params,
 ): string {
-  return terms.map((term) => termCondition(term, search, params)).join(" AND ");
+  return terms
+    .map((term) => termCondition(term, columns, params))
+    .join(" AND ");
 }
 
 export { Params, quote, RANDOM, termsCondition };

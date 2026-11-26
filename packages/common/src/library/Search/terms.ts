@@ -11,6 +11,8 @@ type Resolver = {
   names: Map<string, string>;
   /** Real names of the columns checked for free-text keys. */
   search: string[];
+  /** Real names of the columns compared without case. */
+  caseInsensitive: Set<string>;
 };
 
 /**
@@ -18,13 +20,13 @@ type Resolver = {
  *
  * @param options The column settings.
  * @returns The checked settings.
- * @throws {SearchError} If a column name is unsafe, or `search` or `alias` use a column or name
- * that can't be used.
+ * @throws {SearchError} If a column name is unsafe, or `search`, `caseInsensitive` or `alias` use
+ * a column or name that can't be used.
  */
 function createResolver(
   options: Pick<
     SearchOptions<string>,
-    "columns" | "exclude" | "search" | "alias"
+    "columns" | "exclude" | "search" | "caseInsensitive" | "alias"
   >,
 ): Resolver {
   const excluded = new Set<string>(options.exclude ?? []);
@@ -59,7 +61,17 @@ function createResolver(
     }
     return name;
   });
-  return { names, search };
+  const caseInsensitive = new Set<string>();
+  for (const column of options.caseInsensitive ?? []) {
+    const name = names.get(column.toLowerCase());
+    if (name === undefined || excluded.has(name)) {
+      throw new SearchError(
+        `Case-insensitive column "${column}" is not a usable column.`,
+      );
+    }
+    caseInsensitive.add(name);
+  }
+  return { names, search, caseInsensitive };
 }
 
 /**
