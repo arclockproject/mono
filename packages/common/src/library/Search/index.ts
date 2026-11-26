@@ -18,7 +18,9 @@ function selectSearch<
   const Column extends string,
   const Sort extends string = never,
   Context = undefined,
->(options: SearchSelectOptions<Column, Sort, Context>): SearchBuilder<Context> {
+>(
+  options: SearchSelectOptions<Column, Sort, Context>,
+): SearchBuilder<Context, Sort> {
   return createSelect(options);
 }
 
@@ -29,7 +31,7 @@ function unionSearch<
   Context = undefined,
 >(
   options: SearchUnionOptions<Output, Source, Sort, Context>,
-): SearchBuilder<Context> {
+): SearchBuilder<Context, Sort, Source> {
   return createUnion(options);
 }
 
