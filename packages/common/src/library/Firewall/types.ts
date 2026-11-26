@@ -6,6 +6,8 @@ type UserID = string | number;
 /**
  * Permission names mapped to their IDs. The names are used in code, the IDs are what gets stored.
  * A permission named `"*"` is the wildcard: a user who has it passes every rule.
+ *
+ * @deprecated Will not be exported in the next major version. The type stays the same.
  */
 type FirewallPermissions = { readonly [name: string]: number };
 
@@ -14,11 +16,15 @@ declare const permissionBrand: unique symbol;
 /**
  * A permission ID taken from `firewall.permissions`. A plain number is not accepted, so every
  * rule goes through a permission name, and renaming the name renames every use.
+ *
+ * @deprecated Will not be exported in the next major version. The type stays the same.
  */
 type PermissionID = number & { readonly [permissionBrand]: true };
 
 /**
  * The permission map as {@link PermissionID}s, with the same names.
+ *
+ * @deprecated Will not be exported in the next major version. The type stays the same.
  */
 type PermissionIDs<Permissions extends FirewallPermissions> = {
   readonly [Name in keyof Permissions]: PermissionID;
@@ -91,11 +97,15 @@ type FirewallSession<Req, Res> = {
  * Continues to the next handler. Passing an error skips to the error handler, like in Express.
  *
  * @param err Error to report.
+ *
+ * @deprecated Will not be exported in the next major version. The type stays the same.
  */
 type FirewallNext = (err?: unknown) => void;
 
 /**
  * A request handler with the same arguments as an Express middleware.
+ *
+ * @deprecated Will not be exported in the next major version. The type stays the same.
  */
 type FirewallMiddleware<Req, Res> = (
   req: Req,
@@ -140,6 +150,8 @@ type FirewallLoginResult =
  * - `"required"`: no credentials were sent.
  * - `"wrong-password"`: the user exists, but the password or API key is wrong.
  * - `"not-found"`: no user matches the credentials.
+ *
+ * @deprecated Will not be exported in the next major version. The type stays the same.
  */
 type FirewallLoginReason = "required" | "wrong-password" | "not-found";
 
@@ -266,6 +278,33 @@ type FirewallOptions<Req, Res> = {
     reason: "wrong-password" | "not-found";
   }) => void;
   /**
+   * Handles an error thrown by the firewall or your callbacks, in the login middleware and in
+   * `protect`, instead of `next(err)`. Express's error handler is skipped unless you call
+   * `next(err)` yourself. It must end the request or call `next`. An error thrown here goes to
+   * `next(err)`, or is dropped with `hardened`.
+   *
+   * @default (err, req, res, next) => next(err)
+   * @param err The error.
+   * @param req The request.
+   * @param res The response.
+   * @param next Continues to the next handler. Does nothing with `hardened`.
+   */
+  onError?: (
+    err: unknown,
+    req: Req,
+    res: Res,
+    next: FirewallNext,
+  ) => void | Promise<void>;
+  /**
+   * Never lets a request further after an error, not even to Express's error handler. Errors only
+   * go to `onError`, which is then required and must end the request, since its `next` does
+   * nothing. An error thrown in `onError` is dropped. Only logged-in requests and passed `protect`
+   * checks reach `next`.
+   *
+   * @default false
+   */
+  hardened?: boolean;
+  /**
    * Finds the client IP. Return `undefined` if it is unknown, and the request is passed to `blocked`.
    *
    * The default uses the connection's IP. Behind a proxy, that is the proxy's IP, so every client
@@ -296,6 +335,8 @@ type FirewallOptions<Req, Res> = {
 
 /**
  * The first argument of `protect`.
+ *
+ * @deprecated Will not be exported in the next major version. The type stays the same.
  */
 type FirewallProtectConfig<IDs> = {
   /**
@@ -311,6 +352,8 @@ type FirewallProtectConfig<IDs> = {
  * the `"*"` permission always passes.
  *
  * `Req` and `Res` are taken from where it is used, e.g. from `app.get()` in Express.
+ *
+ * @deprecated Will not be exported in the next major version. The type stays the same.
  */
 type FirewallProtect<IDs, Req, Res> = {
   /**

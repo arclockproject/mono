@@ -1,3 +1,4 @@
+import { handleError } from "./firewall";
 import type {
   FirewallNext,
   FirewallOptions,
@@ -84,7 +85,7 @@ function createProtect<IDs, Req extends FirewallRequest, Res>(
         require: rule,
       });
     } catch (err) {
-      next(err);
+      await handleError(options, err, req, res, next);
     }
   };
   function protect(
