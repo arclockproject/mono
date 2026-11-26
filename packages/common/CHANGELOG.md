@@ -1,3 +1,10 @@
+## 2.2.0 (2026-11-26)
+
+### ✨ Features
+
+- Added onError and hardened to Firewall, also deprecated internal type exports. ([#21](https://github.com/arclockproject/mono/pull/21)) @arturwagneruk
+- Added buildTyped, caseInsensitive to Search, and expanded the Search guide. ([#20](https://github.com/arclockproject/mono/pull/20)) @arturwagneruk
+
 ## 2.1.0 (2026-11-23)
 
 ### ✨ Features
