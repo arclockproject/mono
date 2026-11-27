@@ -1,3 +1,13 @@
+## 2.2.1 (2026-11-27)
+
+### 🐛 Bug Fixes
+
+- Removed comments from built JS files and moved shared tsdown options to tsdown.base.ts. ([#24](https://github.com/arclockproject/mono/pull/24)) @arturwagneruk
+
+### 📖 Documentation
+
+- Pointed allowMiniPlayer to internal.miniPlayerVisible. ([#24](https://github.com/arclockproject/mono/pull/24)) @arturwagneruk
+
 ## 2.2.0 (2026-11-26)
 
 ### ✨ Features
