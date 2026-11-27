@@ -253,7 +253,10 @@ type settings = {
    */
   autoPlay: boolean;
   /**
-   * Not used yet.
+   * Not used yet. To show or hide the mini player, set `internal.miniPlayerVisible` from `usePlayer()`.
+   * @example
+   * const context = usePlayer<VideoData, PlaylistData>();
+   * useEffect(() => context.internal.miniPlayerVisible.set(false), []); // hides the mini player
    * @default true
    */
   allowMiniPlayer: boolean;

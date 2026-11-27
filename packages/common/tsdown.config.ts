@@ -1,15 +1,11 @@
 import { defineConfig } from "tsdown";
+import { baseConfig } from "../tsdown.base.ts";
+
 export default defineConfig({
+  ...baseConfig,
   entry: [
     "src/index.ts",
     "src/library/*/index.ts",
     "src/components/*/index.tsx",
   ],
-  fixedExtension: false,
-  dts: true,
-  target: false,
-  treeshake: true,
-  format: ["esm", "cjs"],
-  cjsDefault: false,
-  clean: true,
 });
