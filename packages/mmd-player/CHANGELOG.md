@@ -1,3 +1,9 @@
+## 1.1.0 (2026-11-27)
+
+### ✨ Features
+
+- Added a CommonJS build and removed comments from built JS files. ([#24](https://github.com/arclockproject/mono/pull/24)) @arturwagneruk
+
 ## 1.0.0 (2026-11-22)
 
 ### ⚠️ Breaking Changes
