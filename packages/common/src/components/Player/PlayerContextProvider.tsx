@@ -75,6 +75,11 @@ const clampAudioOffset = (value: number) => {
   );
 };
 
+/** Plays `element` and logs a rejected `play()`, e.g. when the source changes before it starts. */
+const playSafe = (element: HTMLMediaElement | null | undefined) => {
+  element?.play().catch(console.error);
+};
+
 /** `time` kept within the element's length. */
 const clampToMedia = (element: HTMLMediaElement, time: number) =>
   Math.max(
@@ -331,6 +336,7 @@ const PlayerContextProvider = <metaType, listMetaType>(
     formatId.current = playerData?.id;
     setVideoFormat({ ...DEFAULT_VIDEO_FORMAT, ...playerData?.format });
     setAudioOffsetState(0);
+    setCurrentPosition(0);
   }
   const audioGraph = useRef<AudioGraph | null>(null);
 
@@ -379,7 +385,7 @@ const PlayerContextProvider = <metaType, listMetaType>(
         setSynchronizing(false);
         performedDeSyncs = 0;
         if (playing) {
-          void refAudio.current?.play();
+          playSafe(refAudio.current);
         }
         return;
       }
@@ -416,8 +422,8 @@ const PlayerContextProvider = <metaType, listMetaType>(
               audio.currentTime = audioTarget;
           }
           if (playing && playingRef.current) {
-            if (!audioOnly) void refVideo.current?.play();
-            void refAudio.current?.play();
+            if (!audioOnly) playSafe(refVideo.current);
+            playSafe(refAudio.current);
           }
           setSynchronizing(false);
         },
@@ -431,7 +437,7 @@ const PlayerContextProvider = <metaType, listMetaType>(
         pendingSync.current = null;
         settleUntil.current = Date.now() + SETTLE_MS;
         if (playing && playingRef.current) {
-          void refVideo.current?.play();
+          playSafe(refVideo.current);
         }
         setSynchronizing(false);
       });
@@ -483,7 +489,7 @@ const PlayerContextProvider = <metaType, listMetaType>(
       if (!refAudio.current) return;
 
       if (playing) {
-        void refAudio.current.play();
+        playSafe(refAudio.current);
         refAudio.current.playbackRate = playSpeed;
         refAudio.current.volume = volume;
         refAudio.current.preservesPitch = !distortAudio;
@@ -500,7 +506,7 @@ const PlayerContextProvider = <metaType, listMetaType>(
             ) > ALLOWED_GAP_ON_PLAY_SECONDS
           )
             syncAll(refAudio.current.currentTime, playing);
-          else void refVideo.current.play();
+          else playSafe(refVideo.current);
         }
       } else {
         if (!audioOnly) refVideo.current?.pause();
@@ -512,7 +518,7 @@ const PlayerContextProvider = <metaType, listMetaType>(
         refVideo.current.playbackRate = playSpeed;
         refVideo.current.volume = volume;
         refVideo.current.preservesPitch = !distortAudio;
-        void refVideo.current.play();
+        playSafe(refVideo.current);
       } else {
         refVideo.current.pause();
       }
@@ -594,7 +600,7 @@ const PlayerContextProvider = <metaType, listMetaType>(
         Math.abs(otherTarget - other.currentTime) > ALLOWED_GAP_ON_PLAY_SECONDS
       )
         other.currentTime = otherTarget;
-      void other.play();
+      playSafe(other);
     }
     stalled.addEventListener("playing", resume);
     stallCleanup.current = cleanup;
@@ -854,7 +860,7 @@ const PlayerContextProvider = <metaType, listMetaType>(
                 refVideo.current.paused !== e.currentTarget.paused
               ) {
                 if (e.currentTarget.paused) void refVideo.current.pause();
-                else void refVideo.current.play();
+                else playSafe(refVideo.current);
               }
             }
           },
