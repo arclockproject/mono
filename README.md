@@ -21,10 +21,10 @@ An easy solution for difficult problems.
 
 This monorepo contains the following packages:
 
-| Package | Description | Docs |
-|---|---|---|
-| [`@arclockproject/common`](./packages/common) | Reusable React components and library utilities. | [Guide](https://arclockproject.org/docs/common) · [API](https://arclockproject.org/docs/api/common) |
-| [`@arclockproject/mmd-player`](./packages/mmd-player) | Full MMD loader and player. | [Guide](https://arclockproject.org/docs/mmd-player) · [API](https://arclockproject.org/docs/api/mmd-player/component) |
+| Package | Description | Docs | Changelog |
+|---|---|---|---|
+| [`@arclockproject/common`](./packages/common) | Reusable React components and library utilities. | [Guide](https://arclockproject.org/docs/common) · [API](https://arclockproject.org/docs/api/common) | [Changelog](./packages/common/CHANGELOG.md) |
+| [`@arclockproject/mmd-player`](./packages/mmd-player) | Full MMD loader and player. | [Guide](https://arclockproject.org/docs/mmd-player) · [API](https://arclockproject.org/docs/api/mmd-player/component) | [Changelog](./packages/mmd-player/CHANGELOG.md) |
 
 ## Installation
 
