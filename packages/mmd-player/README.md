@@ -7,7 +7,7 @@ A full MMD (MikuMikuDance) loader and player for React, built on [Babylon.js](ht
 [![npm](https://img.shields.io/npm/v/@arclockproject/mmd-player)](https://www.npmjs.com/package/@arclockproject/mmd-player)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ArcLockProject/mono/blob/dev/LICENSE)
 
-**[Guide](https://arclockproject.org/docs/mmd-player)** · **[API](https://arclockproject.org/docs/api/mmd-player/component)** · **[GitHub](https://github.com/ArcLockProject/mono/tree/dev/packages/mmd-player)**
+**[Guide](https://arclockproject.org/docs/mmd-player)** · **[API](https://arclockproject.org/docs/api/mmd-player/component)** · **[Changelog](https://github.com/ArcLockProject/mono/blob/dev/packages/mmd-player/CHANGELOG.md)** · **[GitHub](https://github.com/ArcLockProject/mono/tree/dev/packages/mmd-player)**
 
 </div>
 
