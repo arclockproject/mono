@@ -4,7 +4,7 @@ import IconDarkMode from "@theme/Icon/DarkMode";
 import IconLightMode from "@theme/Icon/LightMode";
 import IconSystemColorMode from "@theme/Icon/SystemColorMode";
 import clsx from "clsx";
-import { memo, type ReactNode, useEffect, useRef } from "react";
+import { memo, type ReactNode, useEffect, useState } from "react";
 import styles from "./styles.module.css";
 
 /**
@@ -20,15 +20,11 @@ function ColorModeToggle({
   onChange,
 }: Props): ReactNode {
   const isBrowser = useIsBrowser();
-  const checkbox = useRef<HTMLInputElement>(null);
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
     const html = document.documentElement;
-    const sync = () => {
-      if (checkbox.current) {
-        checkbox.current.checked = html.dataset.theme === "dark";
-      }
-    };
+    const sync = () => setDark(html.dataset.theme === "dark");
     sync();
     const observer = new MutationObserver(sync);
     observer.observe(html, { attributeFilter: ["data-theme"] });
@@ -58,9 +54,10 @@ function ColorModeToggle({
         title="Dark mode"
       >
         <input
-          ref={checkbox}
           type="checkbox"
           role="switch"
+          checked={dark}
+          aria-checked={dark}
           className={styles.checkbox}
           disabled={!isBrowser}
           aria-label="Dark mode"
