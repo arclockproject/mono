@@ -7,7 +7,7 @@ Reusable React components and small library utilities.
 [![npm](https://img.shields.io/npm/v/@arclockproject/common)](https://www.npmjs.com/package/@arclockproject/common)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ArcLockProject/mono/blob/dev/LICENSE)
 
-**[Guide](https://arclockproject.org/docs/common)** · **[API](https://arclockproject.org/docs/api/common)** · **[GitHub](https://github.com/ArcLockProject/mono/tree/dev/packages/common)**
+**[Guide](https://arclockproject.org/docs/common)** · **[API](https://arclockproject.org/docs/api/common)** · **[Changelog](https://github.com/ArcLockProject/mono/blob/dev/packages/common/CHANGELOG.md)** · **[GitHub](https://github.com/ArcLockProject/mono/tree/dev/packages/common)**
 
 </div>
 
