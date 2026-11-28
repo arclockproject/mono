@@ -939,7 +939,6 @@ function LayerRow(props: {
       {open &&
         node.children.map((child, index) => (
           <LayerRow
-            // biome-ignore lint/suspicious/noArrayIndexKey: Layers have no stable id and never reorder
             key={index}
             {...props}
             node={child}
@@ -1442,7 +1441,6 @@ function PSDViewer(
                 <Box sx={{ flex: 1, overflowY: "auto" }}>
                   {psd.children.map((child, index) => (
                     <LayerRow
-                      // biome-ignore lint/suspicious/noArrayIndexKey: Layers have no stable id and never reorder
                       key={index}
                       node={child}
                       depth={0}

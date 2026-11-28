@@ -28,7 +28,9 @@ class AudioInstantManager {
 
   constructor() {
     this.audioContext = new (
-      window.AudioContext || (window as any).webkitAudioContext
+      window.AudioContext ||
+      (window as Window & { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext
     )();
   }
 
