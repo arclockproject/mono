@@ -1,8 +1,7 @@
-import { themes as prismThemes } from "prism-react-renderer";
-import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
-
 import npm2yarn from "@docusaurus/remark-plugin-npm2yarn";
+import type { Config } from "@docusaurus/types";
+import { themes as prismThemes } from "prism-react-renderer";
 import apiDocs, { type ApiDocsOptions } from "./plugins/api-docs";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
@@ -52,7 +51,7 @@ const config: Config = {
         },
       };
     },
-    async function MMDDocusaurusFix(context, options) {
+    async function MMDDocusaurusFix() {
       return {
         name: "mmd-docusaurus-fix",
         configureWebpack: () => ({
@@ -66,7 +65,7 @@ const config: Config = {
     [
       apiDocs,
       {
-        scanAndWatch: ["ts","tsx"],
+        scanAndWatch: ["ts", "tsx"],
         // Writes the pages of the "API" sidebar section in docs/api.
         packages: [
           {

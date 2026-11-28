@@ -46,32 +46,58 @@ type Module = {
   guide?: string;
 };
 
-export default function apiDocs(context: LoadContext, options: ApiDocsOptions): Plugin {
+export default function apiDocs(
+  context: LoadContext,
+  options: ApiDocsOptions,
+): Plugin {
   const { siteDir, siteConfig } = context;
   const selfDocsUrl = `${siteConfig.url}${siteConfig.baseUrl}docs/`; // e.g. https://arclockproject.org/docs/
-  const packages = options.packages.map((pkg) => ({ ...pkg, root: path.resolve(siteDir, pkg.root) }));
+  const packages = options.packages.map((pkg) => ({
+    ...pkg,
+    root: path.resolve(siteDir, pkg.root),
+  }));
 
   const generate = () => {
     const written = new Set<string>();
     for (const pkg of packages) {
-      const sectionsOf = analyzePackage(pkg.root, selfDocsUrl, options.scanAndWatch);
-      for (const module of pkg.modules.flatMap((m) => expand(pkg.root, siteDir, m))) {
-        const guide = module.guide && fs.existsSync(module.guide) ? module.guide : undefined;
+      const sectionsOf = analyzePackage(
+        pkg.root,
+        selfDocsUrl,
+        options.scanAndWatch,
+      );
+      for (const module of pkg.modules.flatMap((m) =>
+        expand(pkg.root, siteDir, m),
+      )) {
+        const guide =
+          module.guide && fs.existsSync(module.guide)
+            ? module.guide
+            : undefined;
         const content = renderPage(sectionsOf(module.source), {
           title: module.title,
           sourceLabel: path.relative(siteDir, module.source),
           importPath: [pkg.name, module.importPath].filter(Boolean).join("/"),
-          guideLink: guide && path.relative(path.dirname(module.outFile), guide).split(path.sep).join("/"),
+          guideLink:
+            guide &&
+            path
+              .relative(path.dirname(module.outFile), guide)
+              .split(path.sep)
+              .join("/"),
         });
         writeIfChanged(module.outFile, content);
         written.add(module.outFile);
       }
     }
     // Remove pages of modules that no longer exist.
-    const outDirs = new Set(packages.flatMap((pkg) => pkg.modules.map((m) => path.dirname(path.resolve(siteDir, m.outFile)))));
+    const outDirs = new Set(
+      packages.flatMap((pkg) =>
+        pkg.modules.map((m) => path.dirname(path.resolve(siteDir, m.outFile))),
+      ),
+    );
     for (const dir of outDirs) {
       if (dir.includes("*") || !fs.existsSync(dir)) continue;
-      for (const file of fs.readdirSync(dir).map((name) => path.join(dir, name))) {
+      for (const file of fs
+        .readdirSync(dir)
+        .map((name) => path.join(dir, name))) {
         if (file.endsWith(".mdx") && !written.has(file)) fs.rmSync(file);
       }
     }
@@ -84,7 +110,10 @@ export default function apiDocs(context: LoadContext, options: ApiDocsOptions): 
   return {
     name: "api-docs",
     // Re-run loadContent when a source file changes, so `docusaurus start` hot-reloads.
-    getPathsToWatch: () => packages.map((pkg) => path.join(pkg.root, `src/**/*.{${options.scanAndWatch.join(",")}}`)),
+    getPathsToWatch: () =>
+      packages.map((pkg) =>
+        path.join(pkg.root, `src/**/*.{${options.scanAndWatch.join(",")}}`),
+      ),
     async loadContent() {
       generate();
     },
@@ -96,19 +125,29 @@ export default function apiDocs(context: LoadContext, options: ApiDocsOptions): 
  * Docusaurus reloads content on every docs edit, and building the TypeScript
  * program is the slow part.
  */
-const cache = new Map<string, { fingerprint: string; sections: Map<string, Section[]> }>();
+const cache = new Map<
+  string,
+  { fingerprint: string; sections: Map<string, Section[]> }
+>();
 
 /** Returns a function that gives the sections of an entry file, from the cache when possible. */
-function analyzePackage(root: string, selfDocsUrl: string, extensions: string[]): (source: string) => Section[] {
+function analyzePackage(
+  root: string,
+  selfDocsUrl: string,
+  extensions: string[],
+): (source: string) => Section[] {
   const srcDir = path.join(root, "src");
   const tsconfig = path.join(root, "tsconfig.json");
   const files = (fs.readdirSync(srcDir, { recursive: true }) as string[])
     .filter((name) => extensions.includes(name.split(".").pop() ?? ""))
     .sort()
     .map((name) => path.join(srcDir, name));
-  const fingerprint = [tsconfig, ...files].map((file) => `${file}:${fs.statSync(file).mtimeMs}`).join("|");
+  const fingerprint = [tsconfig, ...files]
+    .map((file) => `${file}:${fs.statSync(file).mtimeMs}`)
+    .join("|");
 
-  if (cache.get(root)?.fingerprint !== fingerprint) cache.set(root, { fingerprint, sections: new Map() });
+  if (cache.get(root)?.fingerprint !== fingerprint)
+    cache.set(root, { fingerprint, sections: new Map() });
   const { sections } = cache.get(root)!;
   let analyzer: Analyzer | undefined; // Only built when something is not cached.
   return (source) => {
@@ -134,11 +173,17 @@ function expand(root: string, siteDir: string, module: Module): Module[] {
   };
   if (!module.source.includes("*")) return [fill("")];
 
-  const [before, after] = path.resolve(root, module.source).split("*") as [string, string];
+  const [before, after] = path.resolve(root, module.source).split("*") as [
+    string,
+    string,
+  ];
   if (!fs.existsSync(before)) return [];
   return fs
     .readdirSync(before, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && fs.existsSync(`${before}${entry.name}${after}`))
+    .filter(
+      (entry) =>
+        entry.isDirectory() && fs.existsSync(`${before}${entry.name}${after}`),
+    )
     .map((entry) => fill(entry.name));
 }
 

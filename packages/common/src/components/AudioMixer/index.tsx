@@ -327,6 +327,7 @@ export function AudioMixer<
             const pannable = canPan(track);
             return (
               <Stack key={track.id} gap={1} sx={sectionSx}>
+                {/* biome-ignore lint/a11y/useMediaCaption: Music tracks without controls have nothing to caption. */}
                 <audio
                   ref={(element) => {
                     if (element) elements.current.set(track.id, element);

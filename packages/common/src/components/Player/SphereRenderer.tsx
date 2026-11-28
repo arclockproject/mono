@@ -267,6 +267,7 @@ const createGl = (
   gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAGMENT_SHADER));
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return null;
+  // biome-ignore lint/correctness/useHookAtTopLevel: A WebGL method, not a React hook.
   gl.useProgram(program);
 
   const buffer = gl.createBuffer();

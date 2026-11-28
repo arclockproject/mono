@@ -25,6 +25,7 @@ type AudioManagerOptions = {
      *   Return `true` to drop the sound. Any other return value, including none,
      *   creates the element and plays the sound.
      */
+    // biome-ignore lint/suspicious/noConfusingVoidType: The callback may return nothing.
     onMax: "drop" | "throw" | ((path: string, count: number) => boolean | void);
   };
 };

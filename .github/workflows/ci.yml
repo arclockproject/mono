@@ -26,17 +26,17 @@ jobs:
 
       - run: pnpm install
 
+      - name: Lint
+        run: pnpm lint --reporter=github
+
       - name: Build Packages
         run: pnpm run packages:build
 
-      - name: Docs Typecheck
-        run: pnpm run docs:typecheck
+      - name: Type check
+        run: pnpm run type-check
 
-      # - name: Type check
-      #   run: bun run type-check
-
-      # - name: Lint
-      #   run: bun run lint
+      - name: Build Docs
+        run: pnpm run docs:build
 
       # - name: Run tests
       #   run: bun run test

@@ -43,11 +43,23 @@ export type Section = { name: string; isDefault: boolean; doc: Doc } & (
   | { kind: "component"; typeParams: string; props: Prop[]; inherits: string[] }
   | { kind: "namespace"; members: Member[] } // An object of functions, like `Time`.
   | { kind: "object"; props: Prop[] }
-  | { kind: "class"; header: string; ctor: Fn | null; props: Prop[]; members: Member[] }
+  | {
+      kind: "class";
+      header: string;
+      ctor: Fn | null;
+      props: Prop[];
+      members: Member[];
+    }
   | { kind: "instance"; className: string } // `const x = new SomeClass()`.
   | { kind: "variable"; signature: string }
   /** `code` is the full type for non-object types. `internal`: not exported, but used by the API. */
-  | { kind: "type"; header: string; code: string | null; props: Prop[]; internal: boolean }
+  | {
+      kind: "type";
+      header: string;
+      code: string | null;
+      props: Prop[];
+      internal: boolean;
+    }
 );
 
 export const emptyDoc = (): Doc => ({

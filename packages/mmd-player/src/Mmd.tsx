@@ -867,7 +867,7 @@ function Mmd(props: {
                         {preset.subTitle}
                       </Typography>
                       {preset.entities?.map((entity, i) =>
-                        entity && entity.model ? (
+                        entity?.model ? (
                           <Typography
                             key={i}
                             sx={{ textAlign: "center", fontSize: "0.5rem" }}

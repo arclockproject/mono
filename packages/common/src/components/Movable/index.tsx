@@ -260,6 +260,7 @@ export default function Movable(
     return () => containerDiv.current?.removeEventListener("wheel", onWheel);
   }, [enableZoom, enableMovement]);
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: Mouse and touch drag to pan. There is no keyboard equivalent yet.
     <div
       ref={containerDiv}
       style={{

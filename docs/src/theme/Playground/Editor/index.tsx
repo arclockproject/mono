@@ -1,6 +1,5 @@
-import React, { type ReactNode, useState } from "react";
-//@ts-ignore Docosaurus does resolve this import.
 import PlaygroundEditor from "@theme-original/Playground/Editor";
+import { type ReactNode, useState } from "react";
 import styles from "./styles.module.css";
 
 /**
