@@ -37,6 +37,21 @@ const config: Config = {
     locales: ["en"],
   },
   plugins: [
+    function rawSource() {
+      return {
+        name: "raw-source",
+        configureWebpack: (config) => {
+          for (const rule of config.module?.rules ?? []) {
+            if (rule && typeof rule === "object" && !rule.resourceQuery) {
+              rule.resourceQuery = { not: [/raw/] };
+            }
+          }
+          return {
+            module: { rules: [{ resourceQuery: /raw/, type: "asset/source" }] },
+          };
+        },
+      };
+    },
     async function MMDDocusaurusFix(context, options) {
       return {
         name: "mmd-docusaurus-fix",
@@ -134,6 +149,11 @@ const config: Config = {
           sidebarId: "tutorialSidebar",
           position: "left",
           label: "Documentation",
+        },
+        {
+          to: "/demo",
+          label: "Demos",
+          position: "left",
         },
         {
           href: "https://github.com/ArcLockProject/mono",

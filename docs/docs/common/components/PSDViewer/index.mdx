@@ -9,17 +9,21 @@ description: "Shows a Photoshop (.psd) file."
 npm install @mui/material @emotion/react @emotion/styled @webtoon/psd
 ```
 
+## Why PSDViewer? {#why}
+
+- **Opens `.psd` files in the browser,** with no server or converter.
+- **Show and hide layers and groups,** and see the image redrawn from them, with every blend mode, opacity and fill, layer masks and clipping masks.
+- **Loads nothing until the user asks,** so a page with many PSDs stays light.
+
 ## Usage {#usage}
 
 ```tsx
 import PSDViewer from "@arclockproject/common/components/PSDViewer";
 ```
 
-Nothing downloads until the user clicks **Load PSD**. Then the image saved in the file is shown,
-with a layer panel to show and hide layers and groups.
+The file starts loading when the user clicks **Load PSD**. The image saved in the file is shown
+first, next to the layer panel.
 
-- Changing a layer redraws the image from its layers. The redraw supports every blend mode,
-  opacity and fill, layer masks, clipping masks and groups.
 - Layer effects, adjustment layers and group masks are not drawn, so files that use them can look
   different from Photoshop. The toolbar can switch back to the saved image, which is always exact.
 - PSDViewer fills its parent, so give the parent a size and `position: relative`.

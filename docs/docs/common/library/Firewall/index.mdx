@@ -15,6 +15,15 @@ npm install express express-session
 
 It works with both `import` and `require`.
 
+## Why Firewall? {#why}
+
+- **Login and permission checks for Express in one place.** You plug in how to check a password and where permissions are stored.
+- **Permission rules checked by TypeScript.** Rules use the names from your code, so renaming a permission renames every rule, and a typo is a type error. Rules combine with AND, OR and NOT. See [Permissions](#permissions).
+- **An owner permission** that passes every rule. See [The wildcard permission](#the-wildcard-permission).
+- **Login attempt limits** per IP. See [Login attempts](#login-attempts).
+- **Secrets stay out of your logs.** Passwords and API keys are never passed to `onFailedLogin`.
+- **Fails closed with `hardened: true`.** After an error, a request never goes further, not even to Express's error handler. Only logged-in requests and passed checks reach your routes. See [Setup](#setup).
+
 ## Usage {#usage}
 
 ```tsx
@@ -84,11 +93,9 @@ app.post("/logout", async (req, res) => {
 - Errors thrown in your callbacks go to `next(err)`, so Express's error handler deals with them.
   To handle them yourself, set `onError`. It runs instead of `next(err)`, in the login middleware
   and in `protect`.
-- With `hardened: true`, an error is never passed further, not even to Express's error
-  handler. `onError` is then required and must answer the request, e.g. with
+- With `hardened: true`, `onError` is required and must answer the request, e.g. with
   `res.status(500).end()`, since its `next` does nothing. An error thrown in `onError` is
   dropped, so answer the request first, or the client will need to wait till it times out.
-- Passwords and API keys are never passed to `onFailedLogin`, so they don't end up in your logs.
 
 ### Permissions {#permissions}
 

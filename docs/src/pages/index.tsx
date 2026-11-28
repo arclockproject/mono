@@ -41,13 +41,6 @@ function HomepageHeader() {
             Get started
           </Link>
         </div>
-        <div className={styles.installs}>
-          {PACKAGES.map(({ pkg }) => (
-            <CodeBlock key={pkg.name} language="bash" className={styles.install}>
-              {`npm install ${pkg.name}`}
-            </CodeBlock>
-          ))}
-        </div>
       </div>
     </header>
   );
@@ -68,10 +61,23 @@ function Packages() {
                   <Heading as="h3" className="margin-bottom--none">
                     {pkg.name}
                   </Heading>
-                  <code>v{pkg.version}</code>
+                  <Link
+                    href={`https://www.npmjs.com/package/${pkg.name}`}
+                    className={styles.npmBadge}
+                    title={`${pkg.name} on NPM`}
+                  >
+                    <img
+                      src={`https://img.shields.io/npm/v/${pkg.name}?label=latest`}
+                      alt={`${pkg.name} on NPM`}
+                      height={20}
+                    />
+                  </Link>
                 </div>
-                <div className="card__body">
+                <div className={clsx("card__body", styles.cardBody)}>
                   <p>{pkg.description}</p>
+                  <CodeBlock language="bash" className={styles.install}>
+                    {`npm install ${pkg.name}`}
+                  </CodeBlock>
                 </div>
                 <div className="card__footer">
                   <Link className="button button--primary margin-right--sm" to={guide}>

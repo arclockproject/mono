@@ -8,6 +8,18 @@ description: "Video player, mini player and audio player that share playback sta
 ```bash npm2yarn
 npm install @mui/material @emotion/react @emotion/styled @mui/icons-material lodash
 ```
+## Why Player? {#why}
+
+- **Separate video and audio files, kept in sync.** A video-only file and an audio file play through plain `<video>` and `<audio>` tags, and the player corrects drift while they play. If they keep drifting, it falls back to audio only.
+- **Audio outlives the video.** Remove `VideoPlayer`, e.g. on a page change, and the audio keeps playing in the [mini player](#mini-player-and-playlist). Load it again and the video catches up.
+- **Playlists,** with next and previous also on the keyboard media keys and the phone's lock screen.
+- **Its own subtitle renderer** for `.vtt`, `.srt` and `.ass`, keeping `.ass` fonts, colours and positions. Viewers can restyle and retime them, and make the text selectable for pop-up dictionaries. See [Subtitles](#subtitles).
+- **Subtitle tracks inside MKV and MP4 files,** read with range requests, so the file is never downloaded for them. See [MKV and MP4 files](#mkv-files).
+- **180°, 360° and 3D videos,** with drag to look around and a VR mode. See [180°, 360° and 3D](#180-360-and-3d).
+- **Background bloom:** a soft glow behind the player, drawn from the video's own frames.
+- **Video filters and audio effects** for viewers: colour presets, brightness and contrast, bass, mid and treble, volume boost, night mode and an audio offset.
+- **Move and zoom** the video, and a [sticky player](#sticky-mobile-player) on mobile.
+
 
 ## Usage {#usage}
 

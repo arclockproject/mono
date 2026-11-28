@@ -1,5 +1,5 @@
 .features {
-  padding: 2rem 0 4rem;
+  padding: 1rem 0 3rem;
   width: 100%;
 }
 
@@ -14,4 +14,9 @@
   font-size: 2.5rem;
   line-height: 1;
   margin-bottom: 1rem;
+}
+
+[data-theme="light"] .card {
+  background: var(--ifm-color-emphasis-200);
+  border: 1px solid var(--ifm-color-emphasis-300);
 }

@@ -19,15 +19,37 @@
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme="dark"] {
-  --ifm-color-primary: #dc8add;
-  --ifm-color-primary-dark: #d46ed5;
-  --ifm-color-primary-darker: #d060d1;
-  --ifm-color-primary-darkest: #c139c3;
-  --ifm-color-primary-light: #e4a6e5;
-  --ifm-color-primary-lighter: #e8b4e9;
-  --ifm-color-primary-lightest: #f5ddf5;
+  --ifm-color-primary: #9470cc;
+  --ifm-color-primary-dark: #8359c4;
+  --ifm-color-primary-darker: #7a4dc0;
+  --ifm-color-primary-darkest: #633aa3;
+  --ifm-color-primary-light: #a587d4;
+  --ifm-color-primary-lighter: #ae93d8;
+  --ifm-color-primary-lightest: #c8b6e5;
   --ifm-background-color: #181920;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .hero--primary {
+  --ifm-hero-background-color: #3d2457;
+  --ifm-hero-text-color: #f3eefa;
+}
+
+[data-theme="dark"] .button--primary {
+  --ifm-button-background-color: #613583;
+  --ifm-button-border-color: #613583;
+  --ifm-button-color: #fff;
+}
+
+[data-theme="dark"] .button--primary:not(.button--outline):hover {
+  --ifm-button-background-color: #703d97;
+  --ifm-button-border-color: #703d97;
+}
+
+[data-theme="dark"] .button--primary:active,
+[data-theme="dark"] .button--primary.button--active {
+  --ifm-button-background-color: #573076;
+  --ifm-button-border-color: #573076;
 }
 
 .code-line-added,

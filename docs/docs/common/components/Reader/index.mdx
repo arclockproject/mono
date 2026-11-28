@@ -9,19 +9,22 @@ description: "A book reader with single page, double page and scroll views, zoom
 npm install @mui/material @mui/icons-material @emotion/react @emotion/styled react-virtuoso
 ```
 
+## Why Reader? {#why}
+
+- **Single page, double page or scroll view,** reading left to right or right to left. Readers change these, the alignment and the preload range in the settings.
+- **Made for phones too:** tap the sides to turn the page, double-tap to zoom, long-press (or right-click) for a page's buttons.
+- **Preloads the pages around the current one,** so turning the page is instant.
+- **Bookmarks and resume.** Each page can be bookmarked, a mode pages through only the bookmarks, and `onPageChange` lets you save the page. See [Bookmarks and the current page](#bookmarks-and-the-current-page).
+
 ## Usage {#usage}
 
 ```tsx
 import { Reader } from "@arclockproject/common/components/Reader";
 ```
 
-- Tap or click the left or right side to turn the page, and the middle to show the top and bottom
-  bars. Double-tap a page to zoom it, and long-press it (or right-click with a mouse) for its
-  buttons.
+- Tap or click the middle to show the top and bottom bars, with the settings.
 - With focus on the reader, the arrow keys turn the page, `F` toggles fullscreen, `L` toggles the
   bookmark of the current page, and `Escape` closes the settings or the zoomed page.
-- The view (single page, double page or scroll), reading direction, alignment and preload range
-  can be changed in the settings.
 - Page URLs are cached per `id`. Change `id` when the pages change.
 - It is `100vh` tall by default. Set `style.root.sx` to change that.
 
