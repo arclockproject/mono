@@ -24,19 +24,26 @@ const notesFile = values["notes-file"] ?? null;
 const root = path.resolve(import.meta.dirname, "..");
 const pkgDir = path.join(root, "packages", folder ?? "");
 if (!folder || !fs.existsSync(path.join(pkgDir, "package.json"))) {
-  fail(`Usage: node scripts/release.mjs <package> [--dry-run]. Packages: ${fs.readdirSync(path.join(root, "packages")).join(", ")}`);
+  fail(
+    `Usage: node scripts/release.mjs <package> [--dry-run]. Packages: ${fs.readdirSync(path.join(root, "packages")).join(", ")}`,
+  );
 }
 
-const git = (...a) => execFileSync("git", a, { cwd: root, encoding: "utf8" }).trim();
+const git = (...a) =>
+  execFileSync("git", a, { cwd: root, encoding: "utf8" }).trim();
 
-const branch = process.env.GITHUB_REF_NAME || git("rev-parse", "--abbrev-ref", "HEAD");
-if (branch !== "dev" && !dryRun) fail(`Releases only run on dev, not "${branch}".`);
+const branch =
+  process.env.GITHUB_REF_NAME || git("rev-parse", "--abbrev-ref", "HEAD");
+if (branch !== "dev" && !dryRun)
+  fail(`Releases only run on dev, not "${branch}".`);
 
 // ---------- Package ----------
 
 const pkgJsonPath = path.join(pkgDir, "package.json");
 const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
-const repo = pkgJson.repository?.url?.match(/github\.com[/:]([^/]+\/[^/.]+)/)?.[1];
+const repo = pkgJson.repository?.url?.match(
+  /github\.com[/:]([^/]+\/[^/.]+)/,
+)?.[1];
 if (!repo) fail(`No GitHub repository url in ${pkgJsonPath}.`);
 
 const lastTag = `${pkgJson.name}@${pkgJson.version}`;
@@ -52,7 +59,12 @@ try {
 // folder name, e.g. `fix(common): …`. Several scopes are allowed: `fix(common,mmd-player): …`.
 const SEP = "\x1f";
 const END = "\x1e";
-const commits = git("log", `${lastTag}..HEAD`, "--no-merges", `--format=%H${SEP}%s${SEP}%b${END}`)
+const commits = git(
+  "log",
+  `${lastTag}..HEAD`,
+  "--no-merges",
+  `--format=%H${SEP}%s${SEP}%b${END}`,
+)
   .split(END)
   .map((r) => r.trim())
   .filter(Boolean)
@@ -69,15 +81,26 @@ const commits = git("log", `${lastTag}..HEAD`, "--no-merges", `--format=%H${SEP}
   })
   .filter((c) => c.scopes.includes(folder));
 
-if (commits.length === 0) fail(`Nothing to release: no commits with the scope "${folder}" since ${lastTag}.`);
+if (commits.length === 0)
+  fail(
+    `Nothing to release: no commits with the scope "${folder}" since ${lastTag}.`,
+  );
 
 // ---------- Version ----------
 
 // Breaking → major, feat → minor, anything else → patch. Also below 1.0, so a breaking change moves 0.x.x to 1.0.0.
 const [major, minor, patch] = pkgJson.version.split(/[.-]/).map(Number);
-const level = commits.some((c) => c.breaking) ? "major" : commits.some((c) => c.type === "feat") ? "minor" : "patch";
+const level = commits.some((c) => c.breaking)
+  ? "major"
+  : commits.some((c) => c.type === "feat")
+    ? "minor"
+    : "patch";
 const version =
-  level === "major" ? `${major + 1}.0.0` : level === "minor" ? `${major}.${minor + 1}.0` : `${major}.${minor}.${patch + 1}`;
+  level === "major"
+    ? `${major + 1}.0.0`
+    : level === "minor"
+      ? `${major}.${minor + 1}.0`
+      : `${major}.${minor}.${patch + 1}`;
 const tag = `${pkgJson.name}@${version}`;
 
 // ---------- PRs and authors ----------
@@ -86,7 +109,9 @@ async function github(url) {
   const res = await fetch(`https://api.github.com/repos/${repo}/${url}`, {
     headers: {
       Accept: "application/vnd.github+json",
-      ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
+      ...(process.env.GITHUB_TOKEN
+        ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
+        : {}),
     },
   });
   if (!res.ok) fail(`GitHub API ${url}: ${res.status} ${await res.text()}`);
@@ -121,10 +146,12 @@ const SECTIONS = [
   ["other", "📦 Other Changes"],
 ];
 const known = new Set(SECTIONS.map(([key]) => key));
-const sectionOf = (c) => (c.breaking ? "breaking" : known.has(c.type) ? c.type : "other");
+const sectionOf = (c) =>
+  c.breaking ? "breaking" : known.has(c.type) ? c.type : "other";
 
 // The @author mentions also make GitHub show the contributors' avatars under the release.
-const entry = (c) => `- ${c.text} (${c.link})${c.author ? ` @${c.author}` : ""}`;
+const entry = (c) =>
+  `- ${c.text} (${c.link})${c.author ? ` @${c.author}` : ""}`;
 
 const body = SECTIONS.flatMap(([key, title]) => {
   const list = commits.filter((c) => sectionOf(c) === key);
@@ -136,21 +163,31 @@ const section = `## ${version} (${date})\n\n${body}`;
 
 // ---------- Write ----------
 
-console.log(`${pkgJson.name}: ${pkgJson.version} → ${version} (${level}, ${commits.length} ${commits.length === 1 ? "commit" : "commits"})\n`);
+console.log(
+  `${pkgJson.name}: ${pkgJson.version} → ${version} (${level}, ${commits.length} ${commits.length === 1 ? "commit" : "commits"})\n`,
+);
 console.log(section);
 
 if (notesFile) fs.writeFileSync(notesFile, body);
 if (process.env.GITHUB_OUTPUT) {
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\ntag=${tag}\n`);
+  fs.appendFileSync(
+    process.env.GITHUB_OUTPUT,
+    `version=${version}\ntag=${tag}\n`,
+  );
 }
 if (dryRun) process.exit(0);
 
 // Only the version line changes, so the rest of package.json keeps its formatting.
 const raw = fs.readFileSync(pkgJsonPath, "utf8");
-fs.writeFileSync(pkgJsonPath, raw.replace(/("version":\s*")[^"]+(")/, `$1${version}$2`));
+fs.writeFileSync(
+  pkgJsonPath,
+  raw.replace(/("version":\s*")[^"]+(")/, `$1${version}$2`),
+);
 
 const changelogPath = path.join(pkgDir, "CHANGELOG.md");
-const old = fs.existsSync(changelogPath) ? fs.readFileSync(changelogPath, "utf8") : "";
+const old = fs.existsSync(changelogPath)
+  ? fs.readFileSync(changelogPath, "utf8")
+  : "";
 fs.writeFileSync(changelogPath, `${section}\n${old}`);
 
 function fail(message) {
