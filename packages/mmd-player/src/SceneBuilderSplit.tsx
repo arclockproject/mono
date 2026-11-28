@@ -113,10 +113,13 @@ class SceneBuilderSplit implements ISceneBuilder {
     mmdCamera.parent = mmdRoot;
 
     //const camera = new ArcRotateCamera("arcRotateCamera", 0, 0, 45, new Vector3(0, 10, 1), scene);
-    let cameraFly: FlyCamera;
     let cameraArc: ArcRotateCamera;
     let camera: FlyCamera | ArcRotateCamera;
-    cameraFly = new FlyCamera("flyCamera", new Vector3(0, 20, -50), scene);
+    const cameraFly = new FlyCamera(
+      "flyCamera",
+      new Vector3(0, 20, -50),
+      scene,
+    );
     cameraFly.maxZ = 1000;
     cameraFly.minZ = 0.1;
     //camera.setPosition(new Vector3(0, 10, -45));
@@ -664,7 +667,7 @@ class SceneBuilderSplit implements ISceneBuilder {
       ? MMDLoadDetails.cameraType
       : 0;
     scene.activeCamera = cameraTypes[cameraID]!;
-    let cameraTypesNames = [
+    const cameraTypesNames = [
       "Camera: Motion File",
       "Camera: Fly",
       "Camera: Hooked",
