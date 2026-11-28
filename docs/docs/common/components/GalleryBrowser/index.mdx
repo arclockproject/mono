@@ -9,14 +9,23 @@ description: "A paged gallery of images and videos with fullscreen, drag and zoo
 npm install @mui/material @mui/icons-material @emotion/react @emotion/styled
 ```
 
+## Why GalleryBrowser? {#why}
+
+- **Images and videos in one gallery,** with drag and zoom in fullscreen. Double-click the middle to open it.
+- **Files with unknown extensions.** `extensionResolver` tries each extension until one loads. See [Unknown extensions](#unknown-extensions).
+- **SD and HD files,** with an SD/HD button, and optionally the SD file first, swapped for HD once it loads. See [Two resolutions](#two-resolutions).
+- **Preloads nearby pages,** so changing page is instant.
+- **Background bloom:** a blurred, glowing copy of the current page behind the gallery.
+- **Bookmarks** you keep yourself, with a mode that pages through only them. See [Bookmarks](#bookmarks).
+
 ## Usage {#usage}
 
 ```tsx
 import { GalleryBrowser } from "@arclockproject/common/components/GalleryBrowser";
 ```
 
-- Click the left or right quarter of the gallery to change page. Click the middle to show the
-  controls. Double-click it to drag and zoom in fullscreen.
+- Click the left or right quarter of the gallery to change page, and the middle to show the
+  controls.
 - With focus on the gallery, the arrow keys change page, `F` toggles fullscreen and `L` toggles
   the bookmark of the current page.
 - Each page's URL is cached per `id`. Change `id` when the items change.

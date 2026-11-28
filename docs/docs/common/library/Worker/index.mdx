@@ -7,6 +7,10 @@ description: "A queue that runs an async task for each item, a few at a time, wi
 
 This library does not require any dependencies. It works in the browser and in Node.js.
 
+## Why Worker? {#why}
+
+- **A few tasks at a time, with progress and cancelling.** Each task reports progress and gets an `AbortSignal`, and `status()` sums it all up. Works in the browser and in Node.js.
+
 ## Usage {#usage}
 
 ```tsx

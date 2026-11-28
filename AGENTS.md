@@ -125,6 +125,11 @@ description: "One line on what it does. Shown on the package and category pages.
 "This library does not require any dependencies." or an `npm install` block
 (` ```bash npm2yarn `).
 
+## Why Name? {#why}
+
+Optional, see below. A short bullet list of what it does that a plain HTML
+element or a common library doesn't.
+
 ## Usage {#usage}
 
 The import, short notes on what to know, then:
@@ -153,6 +158,24 @@ sliders, buttons) that show the result on the page instead of `console.log`.
 
 The `## API` section is only that one link. Don't copy props, methods or types
 into guide pages; the API page is generated from JSDoc.
+
+### The Why section
+
+- Only for big or unusual components and libraries. Small ones get one or two
+  bullets, or no section at all. Leave it out when there is nothing that sets it
+  apart.
+- Only list what differs. "Plays video" is not a reason, anything can do that.
+  "Plays a separate video and audio file through plain `<video>` and `<audio>`
+  tags and keeps them in sync" is.
+- One bullet per feature: a **bold** lead, then a sentence on what it means for
+  the user. Link to the guide section that shows it, e.g. `See [Subtitles](#subtitles).`
+- Check every claim against the code. Leave out limits and setup; they belong
+  in Usage.
+- Don't say it twice. Why says what it does, Usage says how: prop names,
+  controls, setup and limits. When a Usage line repeats a Why bullet, remove it
+  from Usage, and move any detail it had (e.g. "or right-click") into the Why
+  bullet if it fits there.
+- See `docs/docs/common/components/Player/index.mdx`.
 
 ## Checking your work
 

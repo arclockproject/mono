@@ -7,6 +7,10 @@ description: "Play sounds with <audio> elements, with fade in and out."
 
 This library does not require any dependencies.
 
+## Why Audio? {#why}
+
+- **Sound effects that overlap and music that resumes,** from plain `<audio>` elements, with fade in and out and a cap on how many copies play at once. See [Limiting overlapping sounds](#limiting-overlapping-sounds).
+
 ## Usage {#usage}
 
 Play audio on button click.
@@ -59,6 +63,9 @@ There are two kinds of sounds:
   Each overlapping play uses its own `<audio>` element. Good for clicks and effects.
 - **Single instance** (`singleInstance: true`): one shared player per file. It resumes where it
   stopped and is the only kind `stopInstance` can stop. Good for music.
+
+The `<audio>` elements are made with `document.createElement("audio")` and are never added to the
+page, so they don't show up in your layout or the DOM.
 
 The examples below are live. Edit the code to try your own values. `beepUrl(frequency)` is only
 available on this site. It makes a short beep so the examples don't need sound files.

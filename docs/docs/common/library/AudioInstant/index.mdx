@@ -7,10 +7,13 @@ description: "Play sounds with the Web Audio API, with no delay after loading."
 
 This library does not require any dependencies.
 
+## Why AudioInstant? {#why}
+
+- **No delay on play.** Each file is fetched and decoded once, so later plays start straight from memory. See [Keyboard](#keyboard).
+
 ## Usage {#usage}
 
-Same idea as [Audio](../Audio/index.mdx), but uses the Web Audio API. Files are fetched and decoded once,
-so later plays start without delay.
+Same idea as [Audio](../Audio/index.mdx), but uses the Web Audio API.
 
 ```tsx
 import { AudioInstantManagerGlobal } from "@arclockproject/common/library/AudioInstant";

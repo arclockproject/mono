@@ -9,6 +9,13 @@ description: "Play several audio tracks at once, each with its own volume, pan a
 npm install @mui/material @mui/icons-material @emotion/react @emotion/styled
 ```
 
+## Why AudioMixer? {#why}
+
+- **Several tracks in sync,** each with its own volume, pan, mute and start and end time. The whole mix loops once every track has ended.
+- **Speed with or without pitch shift,** for the whole mix.
+- **Add tracks from anywhere in your app** with `useAudioMixer`. The list is kept in `localStorage`. See [Add tracks from anywhere](#add-tracks-from-anywhere).
+- **Light until played:** tracks only load their metadata until you press play.
+
 ## Usage {#usage}
 
 ```tsx
@@ -18,14 +25,10 @@ import AudioMixer, {
 } from "@arclockproject/common/components/AudioMixer";
 ```
 
-- All tracks play together and the whole mix loops once every track has reached its end. Each
-  track has its own volume, pan, mute, and start and end time. Speed and pitch shift apply to all
-  of them.
-- Tracks only load their metadata until you press play.
 - Pan needs the files to come from the same origin as the page. For another origin, set
   `corsMedia`, but only if that server sends CORS headers.
-- Pass `tracks` yourself, or put the mixer inside an `AudioMixerProvider`. The provider saves the
-  tracks in `localStorage`, and any component inside it can add tracks with `useAudioMixer`.
+- Pass `tracks` yourself, or put the mixer inside an `AudioMixerProvider` so components inside it
+  can use `useAudioMixer`.
 
 The examples below are live. Edit the code to try your own values.
 

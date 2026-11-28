@@ -14,6 +14,15 @@ npm install mariadb
 
 It works with both `import` and `require`.
 
+## Why Search? {#why}
+
+- **A search language for your users,** turned into SQL: words, quoted phrases, `^` and `$` anchors, `column=value`, comparisons and `-` to exclude. See [Search text](#search-text).
+- **Safe to expose.** Values go in as query parameters, and only the columns you allow can be searched.
+- **Clear errors.** Bad search text throws a `SearchError` with `status: 400` and the position of the problem.
+- **Cursor paging, page numbers and a seeded random order.** See [Sorting and paging](#sorting-and-paging).
+- **Several tables as one** with `Search.union`. See [Several tables](#several-tables).
+- **Typed queries and rows,** with any database driver, including Prisma. See [Typed queries and rows](#typed-queries-and-rows).
+
 ## Usage {#usage}
 
 ```tsx
@@ -53,9 +62,8 @@ app.get("/posts/search", async (req, res, next) => {
 });
 ```
 
-Request values can be passed as they are: anything missing or invalid falls back to a default. Bad
-search text throws a `SearchError` with `status: 400`, so Express answers "400 Bad Request". Its
-`position` says where in the text the problem is.
+Request values can be passed as they are: anything missing or invalid falls back to a default. A
+`SearchError` has `status: 400`, so Express answers "400 Bad Request".
 
 ### Typed queries and rows {#typed-queries-and-rows}
 
