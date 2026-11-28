@@ -1,0 +1,24 @@
+.card {
+  height: 100%;
+}
+
+[data-theme="light"] .card {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tag {
+  transition: background var(--ifm-transition-fast);
+}
+
+.tag:hover {
+  text-decoration: none;
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+}
+
+[data-theme="dark"] .tag:hover {
+  background: #613583;
+  border-color: #613583;
+}

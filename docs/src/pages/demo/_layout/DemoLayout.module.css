@@ -1,0 +1,41 @@
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.sourceButton {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: calc(var(--ifm-z-index-fixed) + 151);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.drawer {
+  position: fixed;
+  top: var(--ifm-navbar-height);
+  right: 0;
+  bottom: 0;
+  z-index: calc(var(--ifm-z-index-fixed) + 150);
+  width: min(960px, 100vw);
+  padding: 1rem 1rem 4.5rem;
+  overflow: auto;
+  background: var(--ifm-background-color);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.drawerHeader button {
+  font-size: 1.75rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}
