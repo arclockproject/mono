@@ -3,6 +3,9 @@ import npm2yarn from "@docusaurus/remark-plugin-npm2yarn";
 import type { Config } from "@docusaurus/types";
 import { themes as prismThemes } from "prism-react-renderer";
 import apiDocs, { type ApiDocsOptions } from "./plugins/api-docs";
+import changelogPage, {
+  type ChangelogPageOptions,
+} from "./plugins/changelog-page";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 const config: Config = {
@@ -103,6 +106,21 @@ const config: Config = {
           },
         ],
       } satisfies ApiDocsOptions,
+    ],
+    [
+      changelogPage,
+      {
+        pages: [
+          {
+            source: "../packages/common/CHANGELOG.md",
+            outFile: "docs/common/changelog.md",
+          },
+          {
+            source: "../packages/mmd-player/CHANGELOG.md",
+            outFile: "docs/mmd-player/changelog.md",
+          },
+        ],
+      } satisfies ChangelogPageOptions,
     ],
   ],
   presets: [
