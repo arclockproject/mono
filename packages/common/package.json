@@ -24,7 +24,7 @@
   },
   "scripts": {
     "build": "NODE_ENV=production tsdown",
-    "lint": "biome check .",
+    "lint": "biome check --error-on-warnings .",
     "lint:fix": "biome check --write .",
     "prepare": "pnpm simple-git-hooks",
     "type-check": "tsc --noEmit",

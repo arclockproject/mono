@@ -14,8 +14,9 @@
     "release-preview:common": "node scripts/release.mjs common --dry-run",
     "release-preview:mmd-player": "node scripts/release.mjs mmd-player --dry-run",
     "prepare": "pnpm simple-git-hooks",
-    "lint": "echo 'placeholder'",
-    "type-check": "echo 'placeholder'"
+    "lint": "biome check --error-on-warnings .",
+    "lint:fix": "biome check --write .",
+    "type-check": "pnpm --filter='./packages/*' type-check && pnpm docs:typecheck"
   },
   "packageManager": "pnpm@10.28.2",
   "devDependencies": {
