@@ -1,13 +1,13 @@
-import type { ReactNode } from "react";
-import clsx from "clsx";
 import Link from "@docusaurus/Link";
-import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import Layout from "@theme/Layout";
-import Heading from "@theme/Heading";
-import CodeBlock from "@theme/CodeBlock";
-import ThemedImage from "@theme/ThemedImage";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import HomepageFeatures from "@site/src/components/HomepageFeatures";
+import CodeBlock from "@theme/CodeBlock";
+import Heading from "@theme/Heading";
+import Layout from "@theme/Layout";
+import ThemedImage from "@theme/ThemedImage";
+import clsx from "clsx";
+import type { ReactNode } from "react";
 import common from "../../../packages/common/package.json";
 import mmdPlayer from "../../../packages/mmd-player/package.json";
 
@@ -16,7 +16,11 @@ import styles from "./index.module.css";
 /** Name, version and description come from each package.json, so they stay up to date. */
 const PACKAGES = [
   { pkg: common, guide: "/docs/common", api: "/docs/api/common" },
-  { pkg: mmdPlayer, guide: "/docs/mmd-player", api: "/docs/api/mmd-player/component" },
+  {
+    pkg: mmdPlayer,
+    guide: "/docs/mmd-player",
+    api: "/docs/api/mmd-player/component",
+  },
 ];
 
 function HomepageHeader() {
@@ -37,7 +41,10 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <div className={styles.buttons}>
-          <Link className="button button--secondary button--lg" to="/docs/intro">
+          <Link
+            className="button button--secondary button--lg"
+            to="/docs/intro"
+          >
             Get started
           </Link>
         </div>
@@ -80,7 +87,10 @@ function Packages() {
                   </CodeBlock>
                 </div>
                 <div className="card__footer">
-                  <Link className="button button--primary margin-right--sm" to={guide}>
+                  <Link
+                    className="button button--primary margin-right--sm"
+                    to={guide}
+                  >
                     Guides
                   </Link>
                   <Link className="button button--secondary" to={api}>
@@ -98,7 +108,10 @@ function Packages() {
 
 export default function Home(): ReactNode {
   return (
-    <Layout title="Homepage" description="Main documentation website for ArcLock Project">
+    <Layout
+      title="Homepage"
+      description="Main documentation website for ArcLock Project"
+    >
       <HomepageHeader />
       <main>
         <Packages />

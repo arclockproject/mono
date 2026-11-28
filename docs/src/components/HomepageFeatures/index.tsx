@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import clsx from "clsx";
 import Heading from "@theme/Heading";
+import clsx from "clsx";
+import type { ReactNode } from "react";
 import styles from "./styles.module.css";
 
 type FeatureItem = {
@@ -13,15 +13,17 @@ const FeatureList: FeatureItem[] = [
   {
     icon: "⚡",
     title: "Ready to use",
-    description: <>Install a package from npm and import it. No setup or config needed.</>,
+    description: (
+      <>Install a package from npm and import it. No setup or config needed.</>
+    ),
   },
   {
     icon: "📦",
     title: "Tree-shakable",
     description: (
       <>
-        ES module builds with a separate import path for every component and library, so your bundler drops
-        everything you don't use.
+        ES module builds with a separate import path for every component and
+        library, so your bundler drops everything you don't use.
       </>
     ),
   },
@@ -30,7 +32,8 @@ const FeatureList: FeatureItem[] = [
     title: "Try before you install",
     description: (
       <>
-        Every guide has live examples you can edit in the browser, and every export has types and docs in your editor.
+        Every guide has live examples you can edit in the browser, and every
+        export has types and docs in your editor.
       </>
     ),
   },
