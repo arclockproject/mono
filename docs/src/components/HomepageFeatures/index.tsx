@@ -17,10 +17,11 @@ const FeatureList: FeatureItem[] = [
   },
   {
     icon: "📦",
-    title: "Only what you need",
+    title: "Tree-shakable",
     description: (
       <>
-        Every component and library has its own import path, so your app only bundles the parts you actually use.
+        ES module builds with a separate import path for every component and library, so your bundler drops
+        everything you don't use.
       </>
     ),
   },
